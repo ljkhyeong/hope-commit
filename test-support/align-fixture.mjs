@@ -5,8 +5,8 @@ import {
 } from "node:fs/promises";
 import { dirname } from "node:path";
 
-import { sealAlignHtml } from "../plugins/hope/skills/align/scripts/artifact.mjs";
-import { renderAlignArtifact } from "../plugins/hope/skills/align/scripts/render.mjs";
+import { sealAlignHtml } from "../plugins/hope-commit/skills/align/scripts/artifact.mjs";
+import { renderAlignArtifact } from "../plugins/hope-commit/skills/align/scripts/render.mjs";
 
 export function makeAlignInput(overrides = {}) {
   return {

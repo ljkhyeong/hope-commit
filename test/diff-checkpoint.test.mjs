@@ -6,20 +6,20 @@ import test, { after } from "node:test";
 import {
   checkpointDiffWindow,
   readDiffLedger,
-} from "../plugins/hope/skills/diff/scripts/index.mjs";
+} from "../plugins/hope-commit/skills/diff/scripts/index.mjs";
 import {
   createDiffCheckpoint,
   diffLedgerView,
-} from "../plugins/hope/skills/diff/scripts/checkpoint.mjs";
-import { LIMITS } from "../plugins/hope/skills/diff/scripts/constants.mjs";
-import { digestJson } from "../plugins/hope/skills/diff/scripts/hash.mjs";
+} from "../plugins/hope-commit/skills/diff/scripts/checkpoint.mjs";
+import { LIMITS } from "../plugins/hope-commit/skills/diff/scripts/constants.mjs";
+import { digestJson } from "../plugins/hope-commit/skills/diff/scripts/hash.mjs";
 import {
   checkpointDiffRunWindow,
   createDiffRun,
   inspectDiffRunWindow,
   loadDiffRun,
   removeDiffRun,
-} from "../plugins/hope/skills/diff/scripts/run.mjs";
+} from "../plugins/hope-commit/skills/diff/scripts/run.mjs";
 import { makeSnapshot } from "../test-support/diff-fixture.mjs";
 import {
   registerTestTemporaryDirectoryCleanup,

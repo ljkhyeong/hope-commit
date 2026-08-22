@@ -5,14 +5,14 @@ import {
   DIFF_CLEANUP_FAILED_CODE,
   DIFF_PUBLICATION_RETRYABLE_CODE,
   DIFF_REVALIDATION_RETRYABLE_CODE,
-} from "../plugins/hope/skills/diff/scripts/index.mjs";
+} from "../plugins/hope-commit/skills/diff/scripts/index.mjs";
 import {
   diffErrorDetails,
   diffErrorReport,
   diffExitCode,
   main as runDiffCommand,
   parseDiffArguments,
-} from "../plugins/hope/skills/diff/scripts/cli.mjs";
+} from "../plugins/hope-commit/skills/diff/scripts/cli.mjs";
 
 test("Diff parses every internal Skill command", () => {
   assert.deepEqual(parseDiffArguments([]), { command: "help" });

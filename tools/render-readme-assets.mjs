@@ -12,10 +12,10 @@ import { chromium } from "@playwright/test";
 import {
   inspectAlignArtifact,
   sealAlignHtml,
-} from "../plugins/hope/skills/align/scripts/artifact.mjs";
-import { renderAlignArtifact } from "../plugins/hope/skills/align/scripts/render.mjs";
-import { renderReview } from "../plugins/hope/skills/diff/scripts/render.mjs";
-import { validateAnalysis } from "../plugins/hope/skills/diff/scripts/validate.mjs";
+} from "../plugins/hope-commit/skills/align/scripts/artifact.mjs";
+import { renderAlignArtifact } from "../plugins/hope-commit/skills/align/scripts/render.mjs";
+import { renderReview } from "../plugins/hope-commit/skills/diff/scripts/render.mjs";
+import { validateAnalysis } from "../plugins/hope-commit/skills/diff/scripts/validate.mjs";
 import {
   alternateLocale,
   makeAlignArtifactData,
@@ -69,7 +69,7 @@ async function loadMockupFonts() {
   return Object.fromEntries(await Promise.all(
     Object.entries(mockupFontFiles).map(async ([weight, filename]) => [
       weight,
-      (await readFile(join(root, "plugins", "hope", "assets", "fonts", filename))).toString("base64"),
+      (await readFile(join(root, "plugins", "hope-commit", "assets", "fonts", filename))).toString("base64"),
     ]),
   ));
 }

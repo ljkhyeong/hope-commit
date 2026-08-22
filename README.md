@@ -1,17 +1,17 @@
 <p align="center">
   <img
-    src="plugins/hope/assets/hope-protected-light.png"
+    src="plugins/hope-commit/assets/hope-protected-light.png"
     width="128"
     alt="Hope Protected Light icon"
   >
 </p>
 
-<h1 align="center">Hope</h1>
+<h1 align="center">Hope Commit</h1>
 
 <p align="center">
   <strong>
-    Hope helps people work with AI while staying able to see, understand, and
-    control the work.
+    Review one Git commit as evidence-linked offline HTML while keeping the
+    original Hope capabilities available.
   </strong>
 </p>
 
@@ -19,7 +19,32 @@
 
 <br>
 
+> [!NOTE]
+> Hope Commit is an unofficial fork of [Hope](https://github.com/dkstm95/hope)
+> by SeungIl. It preserves the original Git history and MIT license. The
+> original project does not endorse or maintain this fork.
+
 ## Features
+
+### 🧾 Commit Diff — Review one immutable local Git commit
+
+Commit Diff accepts a hexadecimal commit ID and creates one evidence-linked,
+self-contained offline HTML review. It compares the commit with its first
+parent by default, supports an explicit parent for merge commits, and compares
+a root commit with Git's empty tree.
+
+The collector reads committed Git objects instead of the worktree. Staged,
+unstaged, and untracked files therefore cannot change the captured review. It
+keeps Hope Diff's bounded input, redaction, evidence validation, temporary-state
+ownership, and atomic publication guarantees.
+
+Example request:
+
+```text
+Use $hope-commit:commit-diff to review commit f6363ced in this repository and create Korean HTML.
+```
+
+---
 
 ### 🤝 Align — Reach shared understanding before implementation and prevent `intent debt`
 
@@ -166,14 +191,14 @@ Write's shared standard adapts George Orwell's six rules in
 You need:
 
 - Node.js 22 or newer
-- An authenticated [GitHub CLI](https://cli.github.com/) to use Diff. Run
+- An authenticated [GitHub CLI](https://cli.github.com/) to use PR-based Diff. Run
   `gh auth login` first if needed.
 
 > [!TIP]
 > The simplest option is to ask an AI:
 >
 > ```text
-> Install Hope from https://github.com/dkstm95/hope for this host.
+> Install Hope Commit from https://github.com/ljkhyeong/hope-commit for this host.
 > Follow the repository README and tell me if I need to restart.
 > ```
 
@@ -183,16 +208,18 @@ For example:
 
 ```bash
 # Codex
-codex plugin marketplace add dkstm95/hope
-codex plugin add hope@hope
+codex plugin marketplace add ljkhyeong/hope-commit
+codex plugin add hope-commit@hope-commit
 ```
 
 ```bash
 # Claude Code
-claude plugin marketplace add dkstm95/hope
-claude plugin install hope@hope
+claude plugin marketplace add ljkhyeong/hope-commit
+claude plugin install hope-commit@hope-commit
 ```
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE). See [NOTICE](NOTICE) for original-project attribution and the
+bundled font notices under
+[`plugins/hope-commit/assets/fonts/`](plugins/hope-commit/assets/fonts/).

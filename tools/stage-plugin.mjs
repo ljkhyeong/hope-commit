@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url";
 
 import { isEntrypoint } from "./entrypoint.mjs";
 const root = fileURLToPath(new URL("../", import.meta.url));
-const pluginRoot = resolve(root, "plugins/hope");
+const pluginRoot = resolve(root, "plugins/hope-commit");
 const packageFileList = new URL("./plugin-package-files.txt", import.meta.url);
 
 export function parsePackageFileList(content) {
@@ -59,7 +59,7 @@ function isInside(parent, candidate) {
 export async function stagePlugin(destination) {
   const resolvedDestination = resolve(destination);
   if (isInside(pluginRoot, resolvedDestination)) {
-    throw new Error("The package staging directory must be outside plugins/hope");
+    throw new Error("The package staging directory must be outside plugins/hope-commit");
   }
   await access(resolvedDestination).then(
     () => {

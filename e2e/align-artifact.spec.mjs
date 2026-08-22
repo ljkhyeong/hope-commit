@@ -12,7 +12,7 @@ import { promisify } from "node:util";
 
 import {
   reviseAlignArtifact,
-} from "../plugins/hope/skills/align/scripts/artifact.mjs";
+} from "../plugins/hope-commit/skills/align/scripts/artifact.mjs";
 import {
   makeAlignInput,
   makeDesignDirections,

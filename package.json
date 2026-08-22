@@ -1,9 +1,9 @@
 {
-  "name": "hope",
-  "version": "3.0.3",
+  "name": "hope-commit",
+  "version": "3.1.0",
   "private": true,
   "type": "module",
-  "description": "Hope plugin source and release tooling for AI-assisted work.",
+  "description": "Hope fork with local Git commit review and offline HTML artifacts.",
   "license": "MIT",
   "engines": {
     "node": ">=22"

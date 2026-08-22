@@ -5,7 +5,8 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const skillsRoot = resolve(root, "plugins/hope/skills");
+const skillsRoot = resolve(root, "plugins/hope-commit/skills");
+const deterministicSkills = Object.freeze(["align", "commit-diff", "diff"]);
 const instructionLedSkills = Object.freeze([
   "polish",
   "sweep",
@@ -20,7 +21,7 @@ async function exists(path) {
 test("each feature has one editable Skill boundary", async () => {
   assert.equal(await exists(resolve(root, "features")), false);
   assert.equal(await exists(resolve(root, "design")), false);
-  assert.equal(await exists(resolve(root, "plugins/hope/runtime")), false);
+  assert.equal(await exists(resolve(root, "plugins/hope-commit/runtime")), false);
   assert.equal(await exists(resolve(root, "harness")), false);
   assert.equal(await exists(resolve(root, "settings")), false);
 
@@ -29,17 +30,22 @@ test("each feature has one editable Skill boundary", async () => {
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)
     .sort();
-  assert.deepEqual(skillNames, ["align", "diff", ...instructionLedSkills]);
+  assert.deepEqual(skillNames, ["align", "commit-diff", "diff", ...instructionLedSkills]);
 
   const alignScript = resolve(skillsRoot, "align/scripts/cli.mjs");
+  const commitDiffScript = resolve(skillsRoot, "commit-diff/scripts/cli.mjs");
   const diffScript = resolve(skillsRoot, "diff/scripts/cli.mjs");
   assert.equal(await exists(alignScript), true);
+  assert.equal(await exists(commitDiffScript), true);
   assert.equal(await exists(diffScript), true);
   const align = await readFile(resolve(skillsRoot, "align/SKILL.md"), "utf8");
+  const commitDiff = await readFile(resolve(skillsRoot, "commit-diff/SKILL.md"), "utf8");
   const diff = await readFile(resolve(skillsRoot, "diff/SKILL.md"), "utf8");
   assert.match(align, /scripts\/cli\.mjs/u);
+  assert.match(commitDiff, /scripts\/cli\.mjs/u);
   assert.match(diff, /scripts\/cli\.mjs/u);
   assert.doesNotMatch(align, /runtime\/features\//u);
+  assert.doesNotMatch(commitDiff, /runtime\/features\//u);
   assert.doesNotMatch(diff, /runtime\/features\//u);
 
   for (const skillName of instructionLedSkills) {
@@ -61,7 +67,7 @@ test("each feature has one editable Skill boundary", async () => {
 });
 
 test("feature scripts depend only on their owning Skill", async () => {
-  for (const skillName of ["align", "diff"]) {
+  for (const skillName of deterministicSkills) {
     const featureRoot = resolve(skillsRoot, skillName);
     const pending = [resolve(featureRoot, "scripts")];
     const scripts = [];
@@ -98,13 +104,16 @@ test("feature scripts depend only on their owning Skill", async () => {
     }
   }
 
-  const [alignRender, diffRender] = await Promise.all([
+  const [alignRender, commitDiffRender, diffRender] = await Promise.all([
     readFile(resolve(skillsRoot, "align/scripts/render.mjs"), "utf8"),
+    readFile(resolve(skillsRoot, "commit-diff/scripts/render.mjs"), "utf8"),
     readFile(resolve(skillsRoot, "diff/scripts/render.mjs"), "utf8"),
   ]);
   assert.match(alignRender, /\.\/design\/tokens\.mjs/u);
+  assert.match(commitDiffRender, /\.\/design\/tokens\.mjs/u);
   assert.match(diffRender, /\.\/design\/tokens\.mjs/u);
   assert.doesNotMatch(alignRender, /skills\/diff|shared\/visual/u);
+  assert.doesNotMatch(commitDiffRender, /skills\/(?:align|diff)|shared\/visual/u);
   assert.doesNotMatch(diffRender, /skills\/align|shared\/visual/u);
 });
 

@@ -5,8 +5,8 @@ import {
   collectGitHubPullRequest,
   parseGitHubPullRequestUrl,
   revalidateGitHubSnapshot,
-} from "../plugins/hope/skills/diff/scripts/github.mjs";
-import { LIMITS } from "../plugins/hope/skills/diff/scripts/constants.mjs";
+} from "../plugins/hope-commit/skills/diff/scripts/github.mjs";
+import { LIMITS } from "../plugins/hope-commit/skills/diff/scripts/constants.mjs";
 
 function response(value) {
   return { stdout: JSON.stringify(value) };

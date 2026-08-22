@@ -19,7 +19,7 @@ const packageJson = await readJson("package.json");
 const currentVersion = packageJson.version;
 
 await Promise.all(pluginPackageFiles.map(
-  async (path) => await readBytes(`plugins/hope/${path}`),
+  async (path) => await readBytes(`plugins/hope-commit/${path}`),
 ));
 
 for (const entry of pluginBuildEntries) {
@@ -39,8 +39,8 @@ const [
   packageLock,
 ] =
   await Promise.all([
-    readJson("plugins/hope/.codex-plugin/plugin.json"),
-    readJson("plugins/hope/.claude-plugin/plugin.json"),
+    readJson("plugins/hope-commit/.codex-plugin/plugin.json"),
+    readJson("plugins/hope-commit/.claude-plugin/plugin.json"),
     readJson(".agents/plugins/marketplace.json"),
     readJson(".claude-plugin/marketplace.json"),
     readJson("package-lock.json"),
@@ -51,10 +51,10 @@ assert.equal(packageLock.version, currentVersion);
 assert.equal(packageLock.packages[""].version, currentVersion);
 assert.equal(packageJson.bin, undefined);
 assert.equal(packageJson.scripts.hope, undefined);
-assert.equal(codexPlugin.name, "hope");
+assert.equal(codexPlugin.name, "hope-commit");
 assert.equal(codexPlugin.version, currentVersion);
-assert.equal(codexPlugin.interface.defaultPrompt.length, 4);
-assert.equal(claudePlugin.name, "hope");
+assert.equal(codexPlugin.interface.defaultPrompt.length, 3);
+assert.equal(claudePlugin.name, "hope-commit");
 assert.equal(claudePlugin.version, currentVersion);
 if (process.env.GITHUB_REF_TYPE === "tag") {
   assert.equal(process.env.GITHUB_REF_NAME, `v${currentVersion}`);
@@ -70,12 +70,12 @@ assert.equal(
   "./assets/hope-protected-light.png",
 );
 assert.ok(codexMarketplace.plugins.some(
-  (entry) => entry.name === "hope" && entry.source.path === "./plugins/hope",
+  (entry) => entry.name === "hope-commit" && entry.source.path === "./plugins/hope-commit",
 ));
 const claudeMarketplaceEntry = claudeMarketplace.plugins.find(
-  (entry) => entry.name === "hope",
+  (entry) => entry.name === "hope-commit",
 );
-assert.equal(claudeMarketplaceEntry.source, "./plugins/hope");
+assert.equal(claudeMarketplaceEntry.source, "./plugins/hope-commit");
 assert.equal(claudeMarketplaceEntry.version, undefined);
 assert.equal(packageJson.scripts["plugin:dev:install"], "node tools/install-plugin-dev.mjs");
 assert.equal(packageJson.scripts["check:title"], "node tools/check-change-title.mjs");
@@ -95,4 +95,4 @@ assert.equal(
   `${pluginPackageFiles.join("\n")}\n`,
 );
 
-console.log(`Hope ${currentVersion} package structure is consistent.`);
+console.log(`Hope Commit ${currentVersion} package structure is consistent.`);

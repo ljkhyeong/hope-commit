@@ -172,13 +172,29 @@ export function packageDigestAt(reference) {
   const packageFiles = parsePackageFileList(
     readGitFile(commit, "tools/plugin-package-files.txt").toString("utf8"),
   );
-  const tree = new Map(git(["ls-tree", "-r", commit, "--", "plugins/hope"])
+  const forkPluginRoot = "plugins/hope-commit";
+  const upstreamPluginRoot = "plugins/hope";
+  const pluginRoot = git([
+    "ls-tree",
+    "-d",
+    "--name-only",
+    commit,
+    "--",
+    forkPluginRoot,
+  ]).trim() === forkPluginRoot
+    ? forkPluginRoot
+    : upstreamPluginRoot;
+  const tree = new Map(git(["ls-tree", "-r", commit, "--", pluginRoot])
     .split(/\r?\n/u)
     .filter(Boolean)
     .map((line) => {
-      const match = /^(?<mode>\d+)\s+(?<type>\S+)\s+(?<digest>[0-9a-f]+)\tplugins\/hope\/(?<path>.+)$/u.exec(line);
+      const match = /^(?<mode>\d+)\s+(?<type>\S+)\s+(?<digest>[0-9a-f]+)\t(?<fullPath>.+)$/u.exec(line);
       if (!match) throw new Error(`Could not parse package tree entry: ${line}`);
-      return [match.groups.path, match.groups];
+      const prefix = `${pluginRoot}/`;
+      if (!match.groups.fullPath.startsWith(prefix)) {
+        throw new Error(`Package tree entry is outside ${pluginRoot}: ${line}`);
+      }
+      return [match.groups.fullPath.slice(prefix.length), match.groups];
     }));
   return packageDigest(packageFiles.map((path) => {
     const entry = tree.get(path);
@@ -186,7 +202,7 @@ export function packageDigestAt(reference) {
       throw new Error(`Package entry is not a Git blob at ${commit}: ${path}`);
     }
     return {
-      bytes: readGitFile(commit, `plugins/hope/${path}`),
+      bytes: readGitFile(commit, `${pluginRoot}/${path}`),
       mode: entry.mode,
       path,
     };
@@ -212,7 +228,7 @@ export function packageDigestFromWorktree() {
   const packageFiles = parsePackageFileList(
     readFileSync(resolve(root, "tools/plugin-package-files.txt"), "utf8"),
   );
-  return packageDigestFromDirectory(resolve(root, "plugins/hope"), packageFiles);
+  return packageDigestFromDirectory(resolve(root, "plugins/hope-commit"), packageFiles);
 }
 
 export function versionAt(reference) {

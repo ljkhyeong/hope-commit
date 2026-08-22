@@ -12,10 +12,10 @@ There is no independent Hope CLI or harness.
 ## Sources of truth
 
 - [PRINCIPLES.md](../PRINCIPLES.md) defines the project direction.
-- Each `plugins/hope/skills/<feature>/SKILL.md` defines one feature's behavior.
+- Each `plugins/hope-commit/skills/<feature>/SKILL.md` defines one feature's behavior.
 - A Skill's `references/` directory owns detailed or conditional guidance.
-- [design.md](design.md) defines Hope's GUI guidance and the Align and Diff
-  artifact visual contracts.
+- [design.md](design.md) defines Hope's GUI guidance and the Align, Diff, and
+  Commit Diff artifact visual contracts.
 - [release.md](release.md) defines the public package and release process.
 - This document defines repository structure and dependency boundaries.
 
@@ -37,9 +37,11 @@ flowchart LR
   L["Claude Code delivery"] --> S
   S --> I["Instructions and references"]
   S --> A["Align deterministic code"]
+  S --> G["Commit Diff deterministic code and assets"]
   S --> D["Diff deterministic code and assets"]
   A --> H["Self-contained HTML"]
-  D --> H["Self-contained HTML"]
+  G --> H
+  D --> H
 ```
 
 The arrows point from delivery toward feature behavior.
@@ -60,13 +62,13 @@ Use delivery-neutral language for feature judgment and workflow rules.
 ## Folders
 
 ```text
-hope/
+hope-commit/
 ├── .agents/             Codex local marketplace catalog
 ├── .claude-plugin/      Claude local marketplace catalog
 ├── assets/              README captures
 ├── docs/                Topic-specific repository, release, and design contracts
-├── e2e/                 Diff browser acceptance tests
-├── plugins/hope/        Installable Codex and Claude package
+├── e2e/                 Browser acceptance tests
+├── plugins/hope-commit/ Installable Codex and Claude package
 ├── test/                Deterministic and package tests
 ├── test-support/        Shared deterministic test fixtures
 └── tools/               Build, validation, staging, and release scripts
@@ -86,10 +88,10 @@ Do not choose a location from importance or file size alone.
 ## Feature boundary
 
 The current editable source of every feature lives under
-`plugins/hope/skills/`.
+`plugins/hope-commit/skills/`.
 
 ```text
-plugins/hope/
+plugins/hope-commit/
 ├── .codex-plugin/plugin.json
 ├── .claude-plugin/plugin.json
 ├── assets/
@@ -99,6 +101,11 @@ plugins/hope/
     │   ├── references/
     │   └── scripts/
     ├── diff/
+    │   ├── SKILL.md
+    │   ├── references/
+    │   ├── scripts/
+    │   └── assets/
+    ├── commit-diff/
     │   ├── SKILL.md
     │   ├── references/
     │   ├── scripts/
@@ -127,9 +134,10 @@ Keep private assets beside their only feature consumer.
 
 Do not generate Skill instructions or keep a repository mirror of them.
 
-Shared code needs two real consumers with the same invariant. Align and Diff
-currently own their visual tokens, rendering, and publication behavior
-independently.
+Shared code needs two real consumers with the same invariant. Align, Diff, and
+Commit Diff currently own their visual tokens, rendering, and publication
+behavior independently. Commit Diff started from Diff's bounded review design,
+but does not import Diff at runtime.
 
 Do not add a generic runner, manager, registry, state machine, compatibility
 layer, or second delivery path for a possible future need.
@@ -139,7 +147,7 @@ rewriting its behavior.
 
 ## Deterministic code boundary
 
-Align and Diff currently need deterministic code.
+Align, Diff, and Commit Diff currently need deterministic code.
 
 Their scripts live beside their owning Skills and do not form a shared runtime.
 
@@ -148,10 +156,13 @@ Each Skill and its references own workflow and model judgment.
 Align's scripts own bounded structured input, HTML identity, rendering, safe
 project publication, and same-artifact revision. Diff's scripts own external
 source identity, bounds, validation, rendering, temporary state, and
+publication. Commit Diff owns local Git commit resolution, parent selection,
+immutable object collection, revalidation, rendering, temporary state, and
 publication.
 
-[Align's artifact contract](../plugins/hope/skills/align/references/artifact.md)
-and [Diff's runtime contract](../plugins/hope/skills/diff/references/runtime.md)
+[Align's artifact contract](../plugins/hope-commit/skills/align/references/artifact.md)
+and [Diff's runtime contract](../plugins/hope-commit/skills/diff/references/runtime.md)
+and [Commit Diff's runtime contract](../plugins/hope-commit/skills/commit-diff/references/runtime.md)
 define the feature-specific guarantees enforced at those boundaries.
 
 Extract shared code only after another feature needs the same invariant.
@@ -163,26 +174,27 @@ Both host manifests point at the same `skills/` directory.
 Skill instructions, references, scripts, schemas, locales, and private assets
 ship directly from their editable paths.
 
-Hope-wide brand fonts and the product icon live under `plugins/hope/assets/`
-because Align and Diff embed the same fixed files. Each feature renderer still
-owns its HTML, CSS, layout, and use of those assets.
+Hope-wide brand fonts and the product icon live under `plugins/hope-commit/assets/`
+because Align, Diff, and Commit Diff embed the same fixed files. Each feature
+renderer still owns its HTML, CSS, layout, and use of those assets.
 
-`tools/build-plugin.mjs` copies the root `LICENSE` into the package.
+`tools/build-plugin.mjs` copies the root `LICENSE` and `NOTICE` into the package.
 
 `tools/plugin-files.mjs` records that source mapping and derives the exact
 package allowlist in `tools/plugin-package-files.txt`.
 
-An unrelated file under `plugins/hope/` cannot enter a release accidentally.
+An unrelated file under `plugins/hope-commit/` cannot enter a release accidentally.
 
 Do not edit generated package files by hand.
 
 ## Verification
 
 - Skill tests cover discovery metadata and packaged references.
-- Node tests cover Align identity, revisions, rendering, and safe publication,
-  plus Diff parsing, snapshots, citations, rendering, stale-source checks,
-  bounded input, temporary-state ownership, and safe publication.
-- Browser tests cover both artifacts' layout, keyboard behavior,
+- Node tests cover Align identity, revisions, rendering, and safe publication;
+  Diff parsing, snapshots, citations, rendering, stale-source checks, bounded
+  input, temporary-state ownership, and safe publication; and Commit Diff's
+  commit resolution, root and merge handling, immutable blobs, and renames.
+- Browser tests cover the original artifacts' layout, keyboard behavior,
   accessibility, responsive navigation, printing, and no-JavaScript reading.
 - Package tests cover direct Skill sources, the generated license, and the
   exact release allowlist.
