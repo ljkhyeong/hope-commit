@@ -68,8 +68,8 @@ The public version files are:
 
 - `package.json`;
 - `package-lock.json`;
-- `plugins/hope/.codex-plugin/plugin.json`; and
-- `plugins/hope/.claude-plugin/plugin.json`.
+- `plugins/hope-commit/.codex-plugin/plugin.json`; and
+- `plugins/hope-commit/.claude-plugin/plugin.json`.
 
 For a `patch`, `minor`, or `major` decision, run:
 

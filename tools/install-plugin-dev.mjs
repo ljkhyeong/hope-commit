@@ -10,7 +10,7 @@ import { buildPlugin } from "./build-plugin.mjs";
 import { readPackageFileList } from "./stage-plugin.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
-const pluginRoot = resolve(root, "plugins/hope");
+const pluginRoot = resolve(root, "plugins/hope-commit");
 const sourceManifest = resolve(
   pluginRoot,
   ".codex-plugin/plugin.json",
@@ -63,9 +63,9 @@ export function parseInstallResult(stdout, expectedVersion) {
     throw new Error("Codex did not return a JSON plugin install result");
   }
   if (
-    result.pluginId !== "hope@hope"
-    || result.name !== "hope"
-    || result.marketplaceName !== "hope"
+    result.pluginId !== "hope-commit@hope-commit"
+    || result.name !== "hope-commit"
+    || result.marketplaceName !== "hope-commit"
     || result.version !== expectedVersion
     || typeof result.installedPath !== "string"
   ) {
@@ -115,13 +115,13 @@ export async function installDevPlugin({ codexCommand = "codex" } = {}) {
   const install = run(codexCommand, [
     "plugin",
     "add",
-    "hope@hope",
+    "hope-commit@hope-commit",
     "--json",
   ]);
   const result = parseInstallResult(install.stdout, manifest.version);
   await verifyInstalledPlugin(result.installedPath);
   process.stdout.write(
-    `Installed and verified Hope ${result.version}. Start a new Codex task to use it.\n`,
+    `Installed and verified Hope Commit ${result.version}. Start a new Codex task to use it.\n`,
   );
   return result;
 }

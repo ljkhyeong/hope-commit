@@ -1,4 +1,4 @@
-import { digestJson } from "../plugins/hope/skills/diff/scripts/hash.mjs";
+import { digestJson } from "../plugins/hope-commit/skills/diff/scripts/hash.mjs";
 
 const ALIGN_ID = "e9b3bc09-256a-4240-aa8d-0436a3e1aed1";
 const ALIGN_CREATED_AT = "2026-08-17T03:52:43.056Z";

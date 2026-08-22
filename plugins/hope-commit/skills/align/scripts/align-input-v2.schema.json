@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://raw.githubusercontent.com/dkstm95/hope/main/plugins/hope/skills/align/scripts/align-input-v2.schema.json",
+  "$id": "https://raw.githubusercontent.com/ljkhyeong/hope-commit/main/plugins/hope-commit/skills/align/scripts/align-input-v2.schema.json",
   "title": "Hope Align artifact input v2",
   "type": "object",
   "additionalProperties": false,

@@ -6,13 +6,13 @@ import {
   LAYOUT as ALIGN_LAYOUT,
   SPACE as ALIGN_SPACE,
   TYPE as ALIGN_TYPE,
-} from "../plugins/hope/skills/align/scripts/design/tokens.mjs";
+} from "../plugins/hope-commit/skills/align/scripts/design/tokens.mjs";
 import {
   COLORS as DIFF_COLORS,
   LAYOUT as DIFF_LAYOUT,
   SPACE as DIFF_SPACE,
   TYPE as DIFF_TYPE,
-} from "../plugins/hope/skills/diff/scripts/design/tokens.mjs";
+} from "../plugins/hope-commit/skills/diff/scripts/design/tokens.mjs";
 
 test("Align and Diff share the agreed artifact visual baseline", () => {
   const sharedColors = [

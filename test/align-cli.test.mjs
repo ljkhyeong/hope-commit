@@ -4,7 +4,7 @@ import test from "node:test";
 import {
   main,
   parseAlignArguments,
-} from "../plugins/hope/skills/align/scripts/cli.mjs";
+} from "../plugins/hope-commit/skills/align/scripts/cli.mjs";
 
 test("Align CLI accepts only complete private adapter commands", () => {
   assert.deepEqual(

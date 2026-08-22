@@ -22,8 +22,8 @@ import {
   reviseAlignArtifact,
   validateAlignInput,
   verifyAlignHtml,
-} from "../plugins/hope/skills/align/scripts/artifact.mjs";
-import { renderAlignArtifact } from "../plugins/hope/skills/align/scripts/render.mjs";
+} from "../plugins/hope-commit/skills/align/scripts/artifact.mjs";
+import { renderAlignArtifact } from "../plugins/hope-commit/skills/align/scripts/render.mjs";
 import {
   makeAlignInput,
   makeDesignDirections,
@@ -36,7 +36,7 @@ import {
 const execFileAsync = promisify(execFile);
 const createTestTemporaryDirectory = registerTestTemporaryDirectoryCleanup(after);
 const now = new Date("2026-08-14T00:00:00.000Z");
-const sampleImage = fileURLToPath(new URL("../plugins/hope/assets/hope-icon.png", import.meta.url));
+const sampleImage = fileURLToPath(new URL("../plugins/hope-commit/assets/hope-icon.png", import.meta.url));
 const alignDataPattern = /<script id="hope-align-data" type="application\/json">([\s\S]*?)<\/script>/u;
 const alignDigestPattern = /(<meta name="hope-align-digest" content=")[a-f0-9]{64}(">)/u;
 

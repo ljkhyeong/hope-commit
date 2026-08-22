@@ -7,11 +7,16 @@ import {
   loadLocale,
   normalizeLocale,
   resolveDisplayOptions,
-} from "../plugins/hope/skills/diff/scripts/locales/index.mjs";
+} from "../plugins/hope-commit/skills/diff/scripts/locales/index.mjs";
 import { pluginPackageFiles } from "../tools/plugin-files.mjs";
 
-test("Diff owns its locale sources and packaged locale paths", () => {
+test("Diff and Commit Diff own their locale sources and packaged locale paths", () => {
   const sources = [
+    "skills/commit-diff/scripts/locales/en-US/common.json",
+    "skills/commit-diff/scripts/locales/en-US/diff.json",
+    "skills/commit-diff/scripts/locales/index.mjs",
+    "skills/commit-diff/scripts/locales/ko-KR/common.json",
+    "skills/commit-diff/scripts/locales/ko-KR/diff.json",
     "skills/diff/scripts/locales/en-US/common.json",
     "skills/diff/scripts/locales/en-US/diff.json",
     "skills/diff/scripts/locales/index.mjs",

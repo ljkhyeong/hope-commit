@@ -1,14 +1,14 @@
 {
-  "name": "hope",
+  "name": "hope-commit",
   "interface": {
-    "displayName": "Hope"
+    "displayName": "Hope Commit"
   },
   "plugins": [
     {
-      "name": "hope",
+      "name": "hope-commit",
       "source": {
         "source": "local",
-        "path": "./plugins/hope"
+        "path": "./plugins/hope-commit"
       },
       "policy": {
         "installation": "AVAILABLE",

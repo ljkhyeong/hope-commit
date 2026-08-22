@@ -22,18 +22,18 @@ test("the staged plugin runs from an external platform path", async (context) =>
     await rm(temporaryRoot, { force: true, recursive: true });
   });
 
-  const destination = join(temporaryRoot, "installed plugin", "hope");
+  const destination = join(temporaryRoot, "installed plugin", "hope-commit");
   const stagedFiles = await stagePlugin(destination);
   assert.deepEqual(
     stagedFiles,
-    pluginPackageFiles.map((path) => path.replace(/^plugins\/hope\//u, "")),
+    pluginPackageFiles,
   );
 
   const manifest = JSON.parse(await readFile(
     join(destination, ".codex-plugin", "plugin.json"),
     "utf8",
   ));
-  assert.equal(manifest.name, "hope");
+  assert.equal(manifest.name, "hope-commit");
   assert.equal(manifest.skills, "./skills/");
 
   const outsideRepository = join(temporaryRoot, "outside repository");
@@ -62,5 +62,17 @@ test("the staged plugin runs from an external platform path", async (context) =>
   assert.match(diffHelp.stdout, /Use Hope Diff through its private Skill adapter/u);
   assert.doesNotMatch(diffHelp.stderr, /\S/u);
 
-  assert.notEqual(resolve(destination), resolve(root, "plugins", "hope"));
+  const commitDiffHelp = spawnSync(
+    process.execPath,
+    [join(destination, "skills", "commit-diff", "scripts", "cli.mjs"), "--help"],
+    {
+      cwd: outsideRepository,
+      encoding: "utf8",
+    },
+  );
+  assert.equal(commitDiffHelp.status, 0, commitDiffHelp.stderr);
+  assert.match(commitDiffHelp.stdout, /Use Hope Commit through its private Skill adapter/u);
+  assert.doesNotMatch(commitDiffHelp.stderr, /\S/u);
+
+  assert.notEqual(resolve(destination), resolve(root, "plugins", "hope-commit"));
 });

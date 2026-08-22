@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { LIMITS } from "../plugins/hope/skills/diff/scripts/constants.mjs";
-import { collectGitHubContext } from "../plugins/hope/skills/diff/scripts/context.mjs";
+import { LIMITS } from "../plugins/hope-commit/skills/diff/scripts/constants.mjs";
+import { collectGitHubContext } from "../plugins/hope-commit/skills/diff/scripts/context.mjs";
 
 function snapshot() {
   return {

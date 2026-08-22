@@ -15,8 +15,8 @@ import {
   ANALYSIS_VERSION,
   LIMITS,
   RUN_VERSION,
-} from "../plugins/hope/skills/diff/scripts/constants.mjs";
-import { revalidateGitHubSnapshot } from "../plugins/hope/skills/diff/scripts/github.mjs";
+} from "../plugins/hope-commit/skills/diff/scripts/constants.mjs";
+import { revalidateGitHubSnapshot } from "../plugins/hope-commit/skills/diff/scripts/github.mjs";
 import {
   DIFF_CLEANUP_FAILED_CODE,
   DIFF_PUBLICATION_RETRYABLE_CODE,
@@ -25,7 +25,7 @@ import {
   finishDiff,
   prepareDiff,
   validateDiff,
-} from "../plugins/hope/skills/diff/scripts/index.mjs";
+} from "../plugins/hope-commit/skills/diff/scripts/index.mjs";
 import {
   buildInspectionPages,
   checkpointDiffRunWindow,
@@ -36,7 +36,7 @@ import {
   inspectionPageView,
   loadDiffRun,
   removeDiffRun,
-} from "../plugins/hope/skills/diff/scripts/run.mjs";
+} from "../plugins/hope-commit/skills/diff/scripts/run.mjs";
 import { makeAnalysis, makeSnapshot } from "../test-support/diff-fixture.mjs";
 import {
   registerTestTemporaryDirectoryCleanup,

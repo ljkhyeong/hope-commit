@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
 import test, { after } from "node:test";
 
-import { addDiffContext } from "../plugins/hope/skills/diff/scripts/index.mjs";
+import { addDiffContext } from "../plugins/hope-commit/skills/diff/scripts/index.mjs";
 import {
   checkpointDiffRunWindow,
   createDiffRun,
   inspectDiffRunWindow,
   loadDiffRun,
   removeDiffRun,
-} from "../plugins/hope/skills/diff/scripts/run.mjs";
+} from "../plugins/hope-commit/skills/diff/scripts/run.mjs";
 import { makeSnapshot } from "../test-support/diff-fixture.mjs";
 import {
   registerTestTemporaryDirectoryCleanup,

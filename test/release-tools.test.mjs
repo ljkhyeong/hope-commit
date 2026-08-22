@@ -39,7 +39,7 @@ import {
 } from "../tools/stage-plugin.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const pluginRoot = resolve(root, "plugins/hope");
+const pluginRoot = resolve(root, "plugins/hope-commit");
 
 async function listFiles(directory, base = directory) {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -287,9 +287,9 @@ test("development installation verifies the selected plugin and cache", async (c
     "utf8",
   ));
   const installResult = parseInstallResult(JSON.stringify({
-    pluginId: "hope@hope",
-    name: "hope",
-    marketplaceName: "hope",
+    pluginId: "hope-commit@hope-commit",
+    name: "hope-commit",
+    marketplaceName: "hope-commit",
     version: manifest.version,
     installedPath: temporaryRoot,
   }), manifest.version);
@@ -372,7 +372,7 @@ test("CI keeps release decisions local and publishes a checked package", async (
 
 test("the release package contains exactly the approved plugin files", async (context) => {
   const temporaryRoot = await mkdtemp(join(tmpdir(), "hope-package-test-"));
-  const destination = join(temporaryRoot, "hope");
+  const destination = join(temporaryRoot, "hope-commit");
   context.after(async () => await rm(temporaryRoot, { recursive: true, force: true }));
 
   const expected = await readPackageFileList();
