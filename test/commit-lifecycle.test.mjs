@@ -2,14 +2,24 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import {
   access,
+  open,
   readFile,
+  unlink,
   writeFile,
 } from "node:fs/promises";
 import { join } from "node:path";
 import test, { after } from "node:test";
 
 import { main as runCommitCommand } from "../plugins/hope-commit/skills/commit/scripts/cli.mjs";
-import { loadDiffRun } from "../plugins/hope-commit/skills/commit/scripts/run.mjs";
+import { finishDiff } from "../plugins/hope-commit/skills/commit/scripts/index.mjs";
+import { digestJson } from "../plugins/hope-commit/skills/commit/scripts/hash.mjs";
+import {
+  appendDiffRunPlan,
+  cleanupExpiredRuns,
+  loadDiffRun,
+  removeDiffRun,
+  writeNewJson,
+} from "../plugins/hope-commit/skills/commit/scripts/run.mjs";
 import {
   registerTestTemporaryDirectoryCleanup,
 } from "../test-support/temporary-directory.mjs";
@@ -200,6 +210,109 @@ function makeLifecycleAnalysis(run) {
   };
 }
 
+function appendContextLimit(snapshot, suffix = "retry") {
+  const { digest: _digest, ...previous } = snapshot;
+  const value = {
+    ...previous,
+    limits: [
+      ...snapshot.limits,
+      {
+        id: `limit-${snapshot.limits.length + 1}`,
+        kind: "context-unavailable",
+        reason: "요청한 맥락을 찾지 못했습니다.",
+        reasonKind: "not-found",
+        revision: snapshot.snapshot.head,
+        subject: `src/${suffix}.mjs`,
+      },
+    ],
+  };
+  return { ...value, digest: digestJson(value) };
+}
+
+function appendOptions(snapshot, temporaryRoot, extra = {}) {
+  return {
+    expectedSnapshotDigest: snapshot.digest,
+    previousLimitCount: snapshot.limits.length,
+    previousSourceCount: snapshot.sources.length,
+    temporaryRoot,
+    ...extra,
+  };
+}
+
+function writeJsonThenFailWhen(matches) {
+  let failed = false;
+  return async (path, value) => {
+    await writeFile(path, `${JSON.stringify(value, null, 2)}\n`, {
+      flag: "wx",
+      mode: 0o600,
+    });
+    if (!failed && matches(path)) {
+      failed = true;
+      const error = new Error("계획 파일 기록 직후 중단됨");
+      error.code = "EIO";
+      throw error;
+    }
+  };
+}
+
+function interruptedJsonOpen(partial) {
+  return async (path, flags, mode) => {
+    const handle = await open(path, flags, mode);
+    return {
+      close: async () => await handle.close(),
+      sync: async () => await handle.sync(),
+      writeFile: async () => {
+        if (partial.length > 0) await handle.writeFile(partial, "utf8");
+        const error = new Error("임시 JSON 기록 중단");
+        error.code = "EIO";
+        throw error;
+      },
+    };
+  };
+}
+
+async function createInspectedCommitRun(temporaryRoot, { outputPath } = {}) {
+  const commit = await createRepositoryFixture(temporaryRoot);
+  const dependencies = commandDependencies(temporaryRoot);
+  const arguments_ = [
+    "prepare",
+    commit,
+    "--repo",
+    temporaryRoot,
+    "--host-locale",
+    "ko-KR",
+  ];
+  if (outputPath) arguments_.push("--output", outputPath);
+  const prepared = await runCommitCommand(arguments_, dependencies);
+  await checkpointEveryWindow(prepared.path, dependencies);
+  const run = await loadDiffRun(prepared.path, { temporaryRoot });
+  return { commit, dependencies, prepared, run };
+}
+
+test("Commit Diff 새 JSON 기록이 중단되면 빈 target이나 잘린 target을 남기지 않는다", async () => {
+  const temporaryRoot = await createTestTemporaryDirectory(
+    "hope-commit-atomic-json-",
+  );
+  for (const [name, partial] of [
+    ["empty", ""],
+    ["truncated", "{\"complete\":"],
+  ]) {
+    const target = join(temporaryRoot, `${name}.json`);
+    await assert.rejects(
+      writeNewJson(target, { complete: true }, {
+        openFile: interruptedJsonOpen(partial),
+      }),
+      /임시 JSON 기록 중단/u,
+    );
+    await assert.rejects(access(target), /ENOENT/u);
+
+    await writeNewJson(target, { complete: true });
+    assert.deepEqual(JSON.parse(await readFile(target, "utf8")), {
+      complete: true,
+    });
+  }
+});
+
 test("Commit Diff가 준비한 상태를 검증하고 재검증한 뒤 HTML을 게시한다", async () => {
   const temporaryRoot = await createTestTemporaryDirectory("hope-commit-lifecycle-");
   const commit = await createRepositoryFixture(temporaryRoot);
@@ -254,6 +367,182 @@ test("Commit Diff가 준비한 상태를 검증하고 재검증한 뒤 HTML을 �
   assert.match(finished.revalidatedAt, /^\d{4}-\d{2}-\d{2}T/u);
   assert.match(await readFile(outputPath, "utf8"), /<!doctype html>/iu);
   await assert.rejects(access(prepared.path), (error) => error.code === "ENOENT");
+});
+
+for (const failurePoint of ["inspection-page", "ledger-state", "manifest"]) {
+  test(`Commit Diff가 ${failurePoint} 중단 뒤 같은 맥락 세대를 재시도한다`, async () => {
+    const temporaryRoot = await createTestTemporaryDirectory(
+      `hope-commit-plan-${failurePoint}-`,
+    );
+    const { prepared, run } = await createInspectedCommitRun(temporaryRoot);
+    const nextSnapshot = appendContextLimit(run.snapshot, failurePoint);
+    const options = appendOptions(run.snapshot, temporaryRoot, {
+      contextOperation: {
+        collected: 0,
+        limitsAdded: 1,
+        requestIds: ["context-request-1"],
+      },
+    });
+    const failure = new Error("계획 반영 직후 중단됨");
+    failure.code = "EIO";
+    const failingOptions = failurePoint === "manifest"
+      ? {
+          ...options,
+          replaceManifest: async (path, value) => {
+            await writeFile(path, `${JSON.stringify(value, null, 2)}\n`, {
+              mode: 0o600,
+            });
+            throw failure;
+          },
+        }
+      : {
+          ...options,
+          writeJson: writeJsonThenFailWhen((path) => (
+            failurePoint === "inspection-page"
+              ? /\/page\.[a-f0-9]{64}\.1\.json$/u.test(path)
+              : path.endsWith("/ledger-state.2.json")
+          )),
+        };
+
+    await assert.rejects(
+      appendDiffRunPlan(prepared.path, nextSnapshot, failingOptions),
+      /중단됨/u,
+    );
+    const retried = await appendDiffRunPlan(
+      prepared.path,
+      nextSnapshot,
+      options,
+    );
+    assert.equal(retried.manifest.generation, 2);
+    assert.equal(retried.snapshot.digest, nextSnapshot.digest);
+    await removeDiffRun(prepared.path, { temporaryRoot });
+  });
+}
+
+test("Commit Diff finish가 잠금 뒤 최신 세대를 다시 읽고 보존한다", async () => {
+  const temporaryRoot = await createTestTemporaryDirectory(
+    "hope-commit-finish-generation-",
+  );
+  const outputPath = join(temporaryRoot, "review.html");
+  const { prepared, run } = await createInspectedCommitRun(temporaryRoot, {
+    outputPath,
+  });
+  const analysis = `${JSON.stringify(makeLifecycleAnalysis(run), null, 2)}\n`;
+  await writeFile(prepared.analysisPath, analysis, {
+    flag: "wx",
+    mode: 0o600,
+  });
+  const nextSnapshot = appendContextLimit(run.snapshot, "new-generation");
+  let published = false;
+
+  await assert.rejects(
+    finishDiff(prepared.path, {
+      claimMutation: async () => {
+        await unlink(prepared.analysisPath);
+        await appendDiffRunPlan(
+          prepared.path,
+          nextSnapshot,
+          appendOptions(run.snapshot, temporaryRoot),
+        );
+        await writeFile(prepared.analysisPath, analysis, { mode: 0o600 });
+        return {
+          assertOwned: async () => {},
+          release: async () => {},
+        };
+      },
+      finalize: async () => {
+        published = true;
+        return { outputPath };
+      },
+      render: async () => ({ bytes: Buffer.from("review"), digest: "d".repeat(64) }),
+      revalidate: async () => ({
+        matches: true,
+        revalidatedAt: "2026-08-27T00:01:00.000Z",
+      }),
+      temporaryRoot,
+    }),
+    /Read and checkpoint every Hope inspection page/u,
+  );
+  assert.equal(published, false);
+  const retained = await loadDiffRun(prepared.path, { temporaryRoot });
+  assert.equal(retained.manifest.generation, 2);
+  await removeDiffRun(prepared.path, { temporaryRoot });
+});
+
+test("Commit Diff finish가 같은 runId의 교체된 디렉터리를 거부한다", async () => {
+  const temporaryRoot = await createTestTemporaryDirectory(
+    "hope-commit-finish-identity-",
+  );
+  const { prepared, run } = await createInspectedCommitRun(temporaryRoot);
+  await writeFile(
+    prepared.analysisPath,
+    `${JSON.stringify(makeLifecycleAnalysis(run), null, 2)}\n`,
+    { flag: "wx", mode: 0o600 },
+  );
+  let published = false;
+
+  await assert.rejects(
+    finishDiff(prepared.path, {
+      claimMutation: async () => ({
+        assertOwned: async () => {},
+        release: async () => {},
+      }),
+      finalize: async () => {
+        published = true;
+        return {};
+      },
+      loadRun: async () => ({
+        ...run,
+        directory: {
+          dev: run.directory.dev,
+          ino: run.directory.ino + 1,
+          mode: run.directory.mode,
+        },
+      }),
+      temporaryRoot,
+    }),
+    /ownership changed before finalization/u,
+  );
+  assert.equal(published, false);
+  await access(prepared.path);
+  await removeDiffRun(prepared.path, { temporaryRoot });
+});
+
+test("Commit Diff 만료 정리가 삭제 실패 뒤 실제 claimed 경로를 다시 정리한다", async () => {
+  const temporaryRoot = await createTestTemporaryDirectory(
+    "hope-commit-expiry-resume-",
+  );
+  const old = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+  const commit = await createRepositoryFixture(temporaryRoot);
+  const prepared = await runCommitCommand([
+    "prepare",
+    commit,
+    "--repo",
+    temporaryRoot,
+    "--host-locale",
+    "ko-KR",
+  ], {
+    ...commandDependencies(temporaryRoot),
+    clock: () => old,
+  });
+  const failed = await cleanupExpiredRuns({
+    removeDirectory: async () => {
+      throw new Error("삭제 중단");
+    },
+    temporaryRoot,
+  });
+
+  assert.equal(failed.preservedPaths.length, 1);
+  assert.match(
+    failed.preservedPaths[0],
+    /\/\.remove-run-[a-f0-9]{32}-[a-f0-9]{32}$/u,
+  );
+  await assert.rejects(access(prepared.path), /ENOENT/u);
+  const retried = await cleanupExpiredRuns({ temporaryRoot });
+  assert.deepEqual(retried, {
+    preservedPaths: [],
+    removedPaths: [failed.preservedPaths[0]],
+  });
 });
 
 test("Commit Diff가 기존 출력 파일을 바꾸지 않는다", async () => {

@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import {
   access,
   mkdir,
+  open,
   readFile,
+  readdir,
   rename,
   symlink,
   unlink,
@@ -26,7 +28,9 @@ import {
   prepareDiff,
   validateDiff,
 } from "../plugins/hope-commit/skills/diff/scripts/index.mjs";
+import { digestJson } from "../plugins/hope-commit/skills/diff/scripts/hash.mjs";
 import {
+  appendDiffRunPlan,
   buildInspectionPages,
   checkpointDiffRunWindow,
   claimDiffRunMutation,
@@ -36,6 +40,7 @@ import {
   inspectionPageView,
   loadDiffRun,
   removeDiffRun,
+  writeNewJson,
 } from "../plugins/hope-commit/skills/diff/scripts/run.mjs";
 import { makeAnalysis, makeSnapshot } from "../test-support/diff-fixture.mjs";
 import {
@@ -77,6 +82,93 @@ async function createAnalyzedRun(temporaryRoot, { outputPath } = {}) {
   );
   return { created, snapshot };
 }
+
+function appendContextLimit(snapshot, suffix = "retry") {
+  const { digest: _digest, ...previous } = snapshot;
+  const value = {
+    ...previous,
+    limits: [
+      ...snapshot.limits,
+      {
+        id: `limit-${snapshot.limits.length + 1}`,
+        kind: "context-unavailable",
+        reason: "The requested context was unavailable",
+        reasonKind: "not-found",
+        revision: snapshot.snapshot.head,
+        subject: `src/${suffix}.js`,
+      },
+    ],
+  };
+  return { ...value, digest: digestJson(value) };
+}
+
+function appendOptions(snapshot, temporaryRoot, extra = {}) {
+  return {
+    expectedSnapshotDigest: snapshot.digest,
+    previousLimitCount: snapshot.limits.length,
+    previousSourceCount: snapshot.sources.length,
+    temporaryRoot,
+    ...extra,
+  };
+}
+
+function writeJsonThenFailWhen(matches) {
+  let failed = false;
+  return async (path, value) => {
+    await writeFile(path, `${JSON.stringify(value, null, 2)}\n`, {
+      flag: "wx",
+      mode: 0o600,
+    });
+    if (!failed && matches(path)) {
+      failed = true;
+      const error = new Error("계획 파일 기록 직후 중단됨");
+      error.code = "EIO";
+      throw error;
+    }
+  };
+}
+
+function interruptedJsonOpen(partial) {
+  return async (path, flags, mode) => {
+    const handle = await open(path, flags, mode);
+    return {
+      close: async () => await handle.close(),
+      sync: async () => await handle.sync(),
+      writeFile: async () => {
+        if (partial.length > 0) await handle.writeFile(partial, "utf8");
+        const error = new Error("임시 JSON 기록 중단");
+        error.code = "EIO";
+        throw error;
+      },
+    };
+  };
+}
+
+test("an interrupted new JSON write leaves no empty or truncated target", async () => {
+  const temporaryRoot = await createTestTemporaryDirectory("hope-run-atomic-json-");
+  for (const [name, partial] of [
+    ["empty", ""],
+    ["truncated", "{\"complete\":"],
+  ]) {
+    const target = join(temporaryRoot, `${name}.json`);
+    await assert.rejects(
+      writeNewJson(target, { complete: true }, {
+        openFile: interruptedJsonOpen(partial),
+      }),
+      /임시 JSON 기록 중단/u,
+    );
+    await assert.rejects(access(target), /ENOENT/u);
+    assert.deepEqual(
+      (await readdir(temporaryRoot)).filter((entry) => entry.endsWith(".tmp")),
+      [],
+    );
+
+    await writeNewJson(target, { complete: true });
+    assert.deepEqual(JSON.parse(await readFile(target, "utf8")), {
+      complete: true,
+    });
+  }
+});
 
 test("an invalid explicit output fails before GitHub collection", async () => {
   let collected = false;
@@ -319,6 +411,164 @@ test("a failed mutation-lock write removes the partial lock", async () => {
   await removeDiffRun(created.path, { temporaryRoot });
 });
 
+for (const failurePoint of ["inspection-page", "ledger-state", "manifest"]) {
+  test(`a ${failurePoint} interruption can retry the same context generation`, async () => {
+    const temporaryRoot = await createTestTemporaryDirectory(
+      `hope-run-plan-${failurePoint}-`,
+    );
+    const snapshot = makeSnapshot();
+    const created = await createDiffRun(snapshot, { temporaryRoot });
+    await inspectAndCheckpointAll(created.path, { temporaryRoot });
+    const nextSnapshot = appendContextLimit(snapshot, failurePoint);
+    const options = appendOptions(snapshot, temporaryRoot, {
+      contextOperation: {
+        collected: 0,
+        limitsAdded: 1,
+        requestIds: ["context-request-1"],
+      },
+    });
+    const failure = new Error("계획 반영 직후 중단됨");
+    failure.code = "EIO";
+
+    const failingOptions = failurePoint === "manifest"
+      ? {
+          ...options,
+          replaceManifest: async (path, value) => {
+            await writeFile(path, `${JSON.stringify(value, null, 2)}\n`, {
+              mode: 0o600,
+            });
+            throw failure;
+          },
+        }
+      : {
+          ...options,
+          writeJson: writeJsonThenFailWhen((path) => (
+            failurePoint === "inspection-page"
+              ? /\/page\.[a-f0-9]{64}\.1\.json$/u.test(path)
+              : path.endsWith("/ledger-state.2.json")
+          )),
+        };
+
+    await assert.rejects(
+      appendDiffRunPlan(created.path, nextSnapshot, failingOptions),
+      /중단됨/u,
+    );
+    const retried = await appendDiffRunPlan(
+      created.path,
+      nextSnapshot,
+      options,
+    );
+    assert.equal(retried.manifest.generation, 2);
+    assert.equal(retried.snapshot.digest, nextSnapshot.digest);
+    await removeDiffRun(created.path, { temporaryRoot });
+  });
+}
+
+test("a conflicting context-plan orphan is not accepted as a retry", async () => {
+  const temporaryRoot = await createTestTemporaryDirectory("hope-run-plan-conflict-");
+  const snapshot = makeSnapshot();
+  const created = await createDiffRun(snapshot, { temporaryRoot });
+  await inspectAndCheckpointAll(created.path, { temporaryRoot });
+  const nextSnapshot = appendContextLimit(snapshot, "conflict");
+  const options = appendOptions(snapshot, temporaryRoot);
+
+  await assert.rejects(
+    appendDiffRunPlan(created.path, nextSnapshot, {
+      ...options,
+      writeJson: writeJsonThenFailWhen(
+        (path) => /\/page\.[a-f0-9]{64}\.1\.json$/u.test(path),
+      ),
+    }),
+    /중단됨/u,
+  );
+  const pagePath = (await readdir(created.path))
+    .map((name) => join(created.path, name))
+    .find((path) => /\/page\.[a-f0-9]{64}\.1\.json$/u.test(path));
+  assert.ok(pagePath);
+  await writeFile(pagePath, `${JSON.stringify({ conflict: true })}\n`, {
+    mode: 0o600,
+  });
+  await assert.rejects(
+    appendDiffRunPlan(created.path, nextSnapshot, options),
+    /conflicting inspection page/u,
+  );
+  await removeDiffRun(created.path, { temporaryRoot });
+});
+
+test("finish reloads the run after claiming it and preserves a newer generation", async () => {
+  const temporaryRoot = await createTestTemporaryDirectory("hope-run-finish-generation-");
+  const { created, snapshot } = await createAnalyzedRun(temporaryRoot);
+  const analysis = await readFile(created.analysisPath, "utf8");
+  const nextSnapshot = appendContextLimit(snapshot, "new-generation");
+  let published = false;
+
+  await assert.rejects(
+    finishDiff(created.path, {
+      claimMutation: async () => {
+        await unlink(created.analysisPath);
+        await appendDiffRunPlan(
+          created.path,
+          nextSnapshot,
+          appendOptions(snapshot, temporaryRoot),
+        );
+        await writeFile(created.analysisPath, analysis, { mode: 0o600 });
+        return {
+          assertOwned: async () => {},
+          release: async () => {},
+        };
+      },
+      finalize: async () => {
+        published = true;
+        return { outputPath: join(temporaryRoot, "review.html") };
+      },
+      render: async () => ({ bytes: Buffer.from("review"), digest: "d".repeat(64) }),
+      revalidate: async () => ({
+        matches: true,
+        revalidatedAt: "2026-07-23T00:01:00.000Z",
+      }),
+      temporaryRoot,
+    }),
+    /Read and checkpoint every Hope inspection page/u,
+  );
+  assert.equal(published, false);
+  const retained = await loadDiffRun(created.path, { temporaryRoot });
+  assert.equal(retained.manifest.generation, 2);
+  await removeDiffRun(created.path, { temporaryRoot });
+});
+
+test("finish rejects a same-runId directory replacement after locking", async () => {
+  const temporaryRoot = await createTestTemporaryDirectory("hope-run-finish-identity-");
+  const { created } = await createAnalyzedRun(temporaryRoot);
+  const current = await loadDiffRun(created.path, { temporaryRoot });
+  let published = false;
+
+  await assert.rejects(
+    finishDiff(created.path, {
+      claimMutation: async () => ({
+        assertOwned: async () => {},
+        release: async () => {},
+      }),
+      finalize: async () => {
+        published = true;
+        return {};
+      },
+      loadRun: async () => ({
+        ...current,
+        directory: {
+          dev: current.directory.dev,
+          ino: current.directory.ino + 1,
+          mode: current.directory.mode,
+        },
+      }),
+      temporaryRoot,
+    }),
+    /ownership changed before finalization/u,
+  );
+  assert.equal(published, false);
+  await access(created.path);
+  await removeDiffRun(created.path, { temporaryRoot });
+});
+
 test("cancelling removes only the owned private directory", async () => {
   const temporaryRoot = await createTestTemporaryDirectory("hope-run-cancel-");
   const created = await createDiffRun(makeSnapshot(), { temporaryRoot });
@@ -388,6 +638,93 @@ test("expiry cleanup preserves a directory replaced during removal", async () =>
     removedPaths: [],
   });
   assert.equal(await readFile(join(created.path, "foreign.txt"), "utf8"), "keep\n");
+});
+
+test("expiry cleanup resumes the exact claimed path after removal fails", async () => {
+  const temporaryRoot = await createTestTemporaryDirectory("hope-run-expiry-resume-");
+  const old = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+  const created = await createDiffRun(makeSnapshot(), {
+    clock: () => old,
+    temporaryRoot,
+  });
+  const failed = await cleanupExpiredRuns({
+    removeDirectory: async () => {
+      const error = new Error("삭제 중단");
+      error.code = "EIO";
+      throw Object.freeze(error);
+    },
+    temporaryRoot,
+  });
+
+  assert.equal(failed.removedPaths.length, 0);
+  assert.equal(failed.preservedPaths.length, 1);
+  assert.match(
+    failed.preservedPaths[0],
+    /\/\.remove-run-[a-f0-9]{32}-[a-f0-9]{32}$/u,
+  );
+  await assert.rejects(access(created.path), /ENOENT/u);
+  await access(failed.preservedPaths[0]);
+
+  const retried = await cleanupExpiredRuns({ temporaryRoot });
+  assert.deepEqual(retried, {
+    preservedPaths: [],
+    removedPaths: [failed.preservedPaths[0]],
+  });
+  await assert.rejects(access(failed.preservedPaths[0]), /ENOENT/u);
+});
+
+test("claimed-run cleanup skips forged and symlink entries and preserves replacements", async () => {
+  const temporaryRoot = await createTestTemporaryDirectory("hope-run-claimed-safety-");
+  const old = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+  const created = await createDiffRun(makeSnapshot(), {
+    clock: () => old,
+    temporaryRoot,
+  });
+  const failed = await cleanupExpiredRuns({
+    removeDirectory: async () => {
+      throw new Error("삭제 중단");
+    },
+    temporaryRoot,
+  });
+  const claimedPath = failed.preservedPaths[0];
+  const root = dirname(claimedPath);
+  const forgedPath = join(
+    root,
+    `.remove-run-${"e".repeat(32)}-${"f".repeat(32)}`,
+  );
+  await mkdir(forgedPath, { mode: 0o700 });
+  await writeFile(join(forgedPath, "run.json"), `${JSON.stringify({
+    createdAt: old.toISOString(),
+    owner: "foreign-run",
+    runId: "e".repeat(32),
+  })}\n`, { mode: 0o600 });
+  const symlinkTarget = join(root, "claimed-symlink-target");
+  await mkdir(symlinkTarget, { mode: 0o700 });
+  const symlinkPath = join(
+    root,
+    `.remove-run-${"d".repeat(32)}-${"c".repeat(32)}`,
+  );
+  await symlink(symlinkTarget, symlinkPath, "dir");
+  const movedPath = join(root, ".claimed-original");
+
+  const cleanup = await cleanupExpiredRuns({
+    onRemoveReady: async ({ path }) => {
+      if (path !== claimedPath) return;
+      await rename(claimedPath, movedPath);
+      await mkdir(claimedPath, { mode: 0o700 });
+      await writeFile(join(claimedPath, "foreign.txt"), "keep\n", "utf8");
+    },
+    temporaryRoot,
+  });
+
+  assert.deepEqual(cleanup, {
+    preservedPaths: [claimedPath],
+    removedPaths: [],
+  });
+  assert.equal(await readFile(join(claimedPath, "foreign.txt"), "utf8"), "keep\n");
+  await access(forgedPath);
+  await access(symlinkPath);
+  await access(movedPath);
 });
 
 test("inspection-plan pointers reject traversal and symlinked files", async () => {

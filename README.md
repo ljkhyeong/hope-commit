@@ -205,14 +205,14 @@ You need:
 > Follow the repository README and tell me if I need to restart.
 > ```
 
-To install it yourself, run the commands for your host.
+To install it yourself, follow the section that matches your current setup.
 
 Hope Commit uses the same `$hope:*` Skill namespace as the original Hope
-plugin. Remove or disable another Hope installation before installing this
-fork. When upgrading from Hope Commit 3.x, also remove the old
-`hope-commit@hope-commit` installation so its previous namespace is not loaded.
+plugin. Do not enable both plugins at the same time.
 
-For example:
+### First installation
+
+Run these commands when no other Hope plugin is installed.
 
 ```bash
 # Codex
@@ -225,6 +225,52 @@ codex plugin add hope@hope-commit
 claude plugin marketplace add ljkhyeong/hope-commit
 claude plugin install hope@hope-commit
 ```
+
+After installation, start a new Codex task. In Claude Code, start a new session
+or run `/reload-plugins`.
+
+### Move from the original Hope plugin
+
+If you use the original `hope@hope`, remove it before installing Hope Commit.
+
+```bash
+# Codex
+codex plugin remove hope@hope
+codex plugin marketplace add ljkhyeong/hope-commit
+codex plugin add hope@hope-commit
+```
+
+```bash
+# Claude Code
+claude plugin uninstall hope@hope
+claude plugin marketplace add ljkhyeong/hope-commit
+claude plugin install hope@hope-commit
+```
+
+After the move, start a new Codex task. In Claude Code, start a new session or
+run `/reload-plugins`.
+
+### Upgrade from Hope Commit 3.x to 4.0
+
+Remove the 3.x `hope-commit@hope-commit` installation first. Then update its
+`hope-commit` marketplace and install the new `hope@hope-commit` plugin.
+
+```bash
+# Codex
+codex plugin remove hope-commit@hope-commit
+codex plugin marketplace upgrade hope-commit
+codex plugin add hope@hope-commit
+```
+
+```bash
+# Claude Code
+claude plugin uninstall hope-commit@hope-commit
+claude plugin marketplace update hope-commit
+claude plugin install hope@hope-commit
+```
+
+After the upgrade, start a new Codex task. In Claude Code, start a new session
+or run `/reload-plugins`.
 
 ## License
 

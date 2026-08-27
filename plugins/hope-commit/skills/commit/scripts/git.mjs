@@ -147,8 +147,23 @@ async function resolveParent(repositoryPath, commit, parentNumber, options = {})
 }
 
 function parseNameStatus(buffer) {
-  const tokens = buffer.toString("utf8").split("\0");
-  if (tokens.at(-1) === "") tokens.pop();
+  if (!Buffer.isBuffer(buffer)) {
+    throw new TypeError("Hope Commit needs byte-safe Git path output");
+  }
+  const tokens = [];
+  let start = 0;
+  while (start < buffer.length) {
+    const end = buffer.indexOf(0, start);
+    if (end === -1) {
+      throw new Error("Git returned malformed NUL-delimited paths");
+    }
+    const token = buffer.subarray(start, end);
+    if (!isUtf8(token)) {
+      throw new Error("Hope Commit does not support non-UTF-8 Git paths");
+    }
+    tokens.push(token.toString("utf8"));
+    start = end + 1;
+  }
   const files = [];
   for (let index = 0; index < tokens.length;) {
     const rawStatus = tokens[index++];
@@ -393,6 +408,8 @@ export async function collectLocalGitCommit(target, {
         [
           "diff",
           "--no-ext-diff",
+          "--no-textconv",
+          "--no-color",
           "--find-renames",
           "--unified=80",
           parent,

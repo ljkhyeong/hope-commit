@@ -200,7 +200,7 @@ Do not edit generated package files by hand.
 - Package tests cover direct Skill sources, the generated license, and the
   exact release allowlist.
 
-Linux runs the deterministic suite on Node.js 22 and 24.
+Linux runs the deterministic suite on Node.js 22, 24, and 26.
 
 macOS and Windows run focused Node.js 22 package and path smoke tests.
 

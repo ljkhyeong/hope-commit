@@ -176,14 +176,15 @@ Write의 공통 기준은 조지 오웰의
 > 저장소의 README에 따라 설치하고, 다시 시작해야 한다면 알려 주세요.
 > ```
 
-직접 설치하려면 사용 중인 도구의 명령을 실행하세요.
+직접 설치하려면 아래에서 현재 상황에 맞는 절차를 따르세요.
 
 Hope Commit은 원본 Hope와 동일한 `$hope:*` Skill 네임스페이스를 사용합니다.
-이 포크를 설치하기 전에 다른 Hope 설치를 제거하거나 비활성화하세요. Hope Commit
-3.x에서 올리는 경우에는 이전 네임스페이스가 함께 로드되지 않도록
-`hope-commit@hope-commit` 설치도 제거해야 합니다.
+두 플러그인을 동시에 활성화하지 마세요.
 
-예시:
+### 처음 설치
+
+다른 Hope 플러그인이 설치되지 않은 환경에서는 다음 명령을 실행하세요.
+
 ```bash
 # Codex
 codex plugin marketplace add ljkhyeong/hope-commit
@@ -195,6 +196,52 @@ codex plugin add hope@hope-commit
 claude plugin marketplace add ljkhyeong/hope-commit
 claude plugin install hope@hope-commit
 ```
+
+설치가 끝나면 Codex에서는 새 작업을 시작하세요. Claude Code에서는 새 세션을
+시작하거나 `/reload-plugins`를 실행하세요.
+
+### 원본 Hope에서 전환
+
+원본 `hope@hope`를 사용 중이면 기존 설치를 제거한 뒤 Hope Commit을 설치하세요.
+
+```bash
+# Codex
+codex plugin remove hope@hope
+codex plugin marketplace add ljkhyeong/hope-commit
+codex plugin add hope@hope-commit
+```
+
+```bash
+# Claude Code
+claude plugin uninstall hope@hope
+claude plugin marketplace add ljkhyeong/hope-commit
+claude plugin install hope@hope-commit
+```
+
+전환이 끝나면 Codex에서는 새 작업을 시작하세요. Claude Code에서는 새 세션을
+시작하거나 `/reload-plugins`를 실행하세요.
+
+### Hope Commit 3.x에서 4.0으로 업그레이드
+
+3.x의 `hope-commit@hope-commit`을 먼저 제거하세요. 그다음 기존
+`hope-commit` 마켓플레이스를 갱신하고 새 `hope@hope-commit`을 설치하세요.
+
+```bash
+# Codex
+codex plugin remove hope-commit@hope-commit
+codex plugin marketplace upgrade hope-commit
+codex plugin add hope@hope-commit
+```
+
+```bash
+# Claude Code
+claude plugin uninstall hope-commit@hope-commit
+claude plugin marketplace update hope-commit
+claude plugin install hope@hope-commit
+```
+
+업그레이드가 끝나면 Codex에서는 새 작업을 시작하세요. Claude Code에서는 새
+세션을 시작하거나 `/reload-plugins`를 실행하세요.
 
 ## 라이선스
 

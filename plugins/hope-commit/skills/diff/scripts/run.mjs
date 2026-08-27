@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import {
   chmod,
+  link,
   lstat,
   mkdir,
   open,
@@ -31,6 +32,9 @@ import { digestJson } from "./hash.mjs";
 const RUN_OWNER = "hope-diff-run";
 const RUN_TTL_MS = 24 * 60 * 60 * 1000;
 const RUN_LOCK = ".change.lock";
+const RUN_DIRECTORY_PATTERN = /^run-([a-f0-9]{32})$/u;
+const CLAIMED_RUN_DIRECTORY_PATTERN =
+  /^\.remove-run-([a-f0-9]{32})-[a-f0-9]{32}$/u;
 function validRunContractVersions(manifest) {
   return (
     manifest.runVersion === RUN_VERSION
@@ -92,11 +96,30 @@ function replacedRunError(preservedPath) {
   return error;
 }
 
+function preservedRemovalError(error, preservedPath) {
+  const original = error instanceof Error ? error : new Error(String(error));
+  const failure = new Error(original.message, { cause: original });
+  failure.name = original.name;
+  if (original.code !== undefined) failure.code = original.code;
+  failure.preservedPath = preservedPath;
+  failure.cleanupPending = true;
+  return failure;
+}
+
+function runIdFromDirectoryName(name) {
+  return name.match(RUN_DIRECTORY_PATTERN)?.[1]
+    ?? name.match(CLAIMED_RUN_DIRECTORY_PATTERN)?.[1];
+}
+
 async function removeOwnedRunDirectory(path, expected, {
   onRemoveReady = async () => {},
   removeDirectory = rm,
   renameDirectory = rename,
 } = {}) {
+  const runId = runIdFromDirectoryName(basename(path));
+  if (runId === undefined) {
+    throw new Error("Hope refused to remove a private run with an unsafe name");
+  }
   await onRemoveReady({ directory: expected, path });
   const current = await lstat(path);
   if (!sameDirectoryIdentity(current, expected)) {
@@ -104,14 +127,27 @@ async function removeOwnedRunDirectory(path, expected, {
   }
   const claimedPath = join(
     dirname(path),
-    `.remove-${basename(path)}-${randomBytes(16).toString("hex")}`,
+    `.remove-run-${runId}-${randomBytes(16).toString("hex")}`,
   );
   await renameDirectory(path, claimedPath);
   const claimed = await lstat(claimedPath);
   if (!sameDirectoryIdentity(claimed, expected)) {
     throw replacedRunError(claimedPath);
   }
-  await removeDirectory(claimedPath, { recursive: true });
+  try {
+    await removeDirectory(claimedPath, { recursive: true });
+  } catch (error) {
+    let preserved;
+    try {
+      preserved = await lstat(claimedPath);
+    } catch {
+      // 소유한 경로가 남지 않았다면 원래 삭제 오류를 그대로 전달합니다.
+    }
+    if (preserved && sameDirectoryIdentity(preserved, expected)) {
+      throw preservedRemovalError(error, claimedPath);
+    }
+    throw error;
+  }
 }
 
 async function privateRunRoot({ temporaryRoot = tmpdir() } = {}) {
@@ -129,14 +165,29 @@ async function privateRunRoot({ temporaryRoot = tmpdir() } = {}) {
   return root;
 }
 
-async function writeNewJson(path, value) {
-  const handle = await open(path, "wx", 0o600);
+export async function writeNewJson(path, value, {
+  linkFile = link,
+  openFile = open,
+  unlinkFile = unlink,
+} = {}) {
+  const temporary = join(
+    dirname(path),
+    `.${basename(path)}.${process.pid}.${randomBytes(16).toString("hex")}.tmp`,
+  );
+  let handle;
   try {
+    handle = await openFile(temporary, "wx", 0o600);
     await handle.writeFile(`${JSON.stringify(value, null, 2)}\n`, "utf8");
     await handle.sync();
-  } finally {
     await handle.close();
+    handle = undefined;
+    await linkFile(temporary, path);
+  } catch (error) {
+    await handle?.close().catch(() => {});
+    await unlinkFile(temporary).catch(() => {});
+    throw error;
   }
+  await unlinkFile(temporary);
 }
 
 async function replaceJson(path, value) {
@@ -201,6 +252,29 @@ async function readRunJson(path, name, {
     throw error;
   } finally {
     await handle.close();
+  }
+}
+
+async function writeNewOrMatchingJson(path, value, {
+  maximumBytes = LIMITS.snapshotBytes,
+  name,
+  writeJson,
+}) {
+  try {
+    await writeJson(path, value);
+  } catch (error) {
+    if (error?.code !== "EEXIST") throw error;
+    let existing;
+    try {
+      existing = await readRunJson(path, name, { maximumBytes });
+    } catch (readError) {
+      throw new Error(`Hope diff found an incomplete ${name}`, {
+        cause: readError,
+      });
+    }
+    if (digestJson(existing) !== digestJson(value)) {
+      throw new Error(`Hope diff found a conflicting ${name}`);
+    }
   }
 }
 
@@ -762,9 +836,13 @@ function advanceLedgerState(state, checkpoint) {
 
 async function writeInspectionPageFiles(path, snapshotDigest, pages, writeJson) {
   for (const page of pages) {
-    await writeJson(
+    await writeNewOrMatchingJson(
       join(path, inspectionPageFileName(snapshotDigest, page.page)),
       page,
+      {
+        name: "inspection page",
+        writeJson,
+      },
     );
   }
 }
@@ -848,19 +926,23 @@ export async function cleanupExpiredRuns({
   const preservedPaths = [];
   const now = clock().getTime();
   for (const entry of await readdir(root, { withFileTypes: true })) {
-    if (!entry.isDirectory() || !entry.name.startsWith("run-")) continue;
+    const runId = runIdFromDirectoryName(entry.name);
+    if (!entry.isDirectory() || runId === undefined) continue;
     const path = join(root, entry.name);
     try {
       const directory = await lstat(path);
       if (directory.isSymbolicLink() || !directory.isDirectory()) continue;
-      if (process.platform !== "win32" && (directory.mode & 0o077) !== 0) continue;
+      if (
+        process.platform !== "win32"
+        && (directory.mode & 0o777) !== 0o700
+      ) continue;
       const manifestPath = join(path, "run.json");
       const manifest = await readRunJson(manifestPath, "run manifest", {
         maximumBytes: LIMITS.manifestBytes,
       });
       if (
         manifest.owner !== RUN_OWNER
-        || manifest.runId !== entry.name.slice(4)
+        || manifest.runId !== runId
       ) {
         continue;
       }
@@ -876,7 +958,7 @@ export async function cleanupExpiredRuns({
       });
       removedPaths.push(path);
     } catch (error) {
-      if (error?.code === "HOPE_DIFF_RUN_REPLACED") {
+      if (typeof error?.preservedPath === "string") {
         preservedPaths.push(error.preservedPath);
       }
       // Unknown state is left in place.
@@ -943,11 +1025,10 @@ export async function createDiffRun(snapshot, {
     } catch (cleanupError) {
       if (cleanupError?.code !== "ENOENT") {
         error.cleanupError = cleanupError;
-        if (cleanupError?.code === "HOPE_DIFF_RUN_REPLACED") {
+        if (typeof cleanupError?.preservedPath === "string") {
           error.preservedPath = cleanupError.preservedPath;
-        } else {
-          error.cleanupPending = true;
         }
+        error.cleanupPending = true;
       }
     }
     throw error;
@@ -1010,10 +1091,11 @@ export async function loadDiffRunIdentity(value, {
   const root = await privateRunRoot({ temporaryRoot });
   const requestedPath = resolve(value);
   const path = await realpath(requestedPath);
+  const runId = basename(path).match(RUN_DIRECTORY_PATTERN)?.[1];
   if (
     !isInside(root, path)
     || dirname(path) !== root
-    || !basename(path).startsWith("run-")
+    || runId === undefined
   ) {
     throw new Error("Hope diff run path is outside Hope's private run storage");
   }
@@ -1031,7 +1113,7 @@ export async function loadDiffRunIdentity(value, {
   });
   if (
     manifest.owner !== RUN_OWNER
-    || manifest.runId !== basename(path).slice(4)
+    || manifest.runId !== runId
     || !validRunContractVersions(manifest)
   ) {
     throw new Error("Hope diff run ownership does not match");
@@ -1065,7 +1147,8 @@ export async function loadDiffRun(value, {
   const root = await privateRunRoot({ temporaryRoot });
   const requestedPath = resolve(value);
   const path = await realpath(requestedPath);
-  if (!isInside(root, path) || dirname(path) !== root || !basename(path).startsWith("run-")) {
+  const runId = basename(path).match(RUN_DIRECTORY_PATTERN)?.[1];
+  if (!isInside(root, path) || dirname(path) !== root || runId === undefined) {
     throw new Error("Hope diff run path is outside Hope's private run storage");
   }
   const directory = await lstat(path);
@@ -1085,7 +1168,7 @@ export async function loadDiffRun(value, {
   });
   if (
     manifest.owner !== RUN_OWNER
-    || manifest.runId !== basename(path).slice(4)
+    || manifest.runId !== runId
     || !validRunContractVersions(manifest)
   ) {
     throw new Error("Hope diff run ownership does not match");
@@ -1262,6 +1345,88 @@ function validateAppendedSnapshot(previous, next, {
   }
 }
 
+function contextOperationRecord(contextOperation, {
+  generation,
+  pageCount,
+  resources,
+  retainedCheckpoints,
+  snapshotDigest,
+}) {
+  if (!contextOperation) return undefined;
+  return {
+    collected: contextOperation.collected,
+    generation,
+    limitsAdded: contextOperation.limitsAdded,
+    pageCount,
+    requestIds: [...contextOperation.requestIds],
+    resources,
+    retainedCheckpoints,
+    snapshotDigest,
+  };
+}
+
+async function isCommittedAppendRetry(run, snapshot, {
+  contextOperation,
+  expectedSnapshotDigest,
+  previousLimitCount,
+  previousSourceCount,
+}) {
+  if (
+    expectedSnapshotDigest === undefined
+    || run.manifest.generation < 2
+    || run.snapshot.digest !== snapshot.digest
+  ) {
+    return false;
+  }
+  const previousGeneration = run.manifest.completedGenerations.at(-1);
+  if (previousGeneration?.snapshotDigest !== expectedSnapshotDigest) {
+    return false;
+  }
+  const previousSnapshotFile = previousGeneration.generation === 1
+    ? "snapshot.json"
+    : `snapshot.${expectedSnapshotDigest}.json`;
+  const previousSnapshot = await readRunJson(
+    join(run.path, previousSnapshotFile),
+    "previous context snapshot",
+  );
+  const previousValue = { ...previousSnapshot };
+  delete previousValue.digest;
+  if (
+    previousSnapshot.digest !== expectedSnapshotDigest
+    || digestJson(previousValue) !== expectedSnapshotDigest
+  ) {
+    throw new Error("Hope diff found a conflicting previous context snapshot");
+  }
+  validateAppendedSnapshot(previousSnapshot, snapshot, {
+    previousLimitCount,
+    previousSourceCount,
+  });
+
+  const currentOperation = run.manifest.contextOperations.find(
+    (operation) => operation.generation === run.manifest.generation,
+  );
+  const expectedOperation = contextOperationRecord(contextOperation, {
+    generation: run.manifest.generation,
+    pageCount: run.manifest.pageCount,
+    resources: run.resources,
+    retainedCheckpoints: run.ledgerState.checkpointCount,
+    snapshotDigest: snapshot.digest,
+  });
+  if (
+    (expectedOperation === undefined && currentOperation !== undefined)
+    || (
+      expectedOperation !== undefined
+      && (
+        currentOperation === undefined
+        || digestJson(currentOperation) !== digestJson(expectedOperation)
+      )
+    )
+  ) {
+    throw new Error("Hope diff found a conflicting committed context operation");
+  }
+  return true;
+}
+
 export async function appendDiffRunPlan(runValue, snapshot, {
   contextOperation,
   expectedSnapshotDigest,
@@ -1287,6 +1452,14 @@ export async function appendDiffRunPlan(runValue, snapshot, {
   }
   try {
     const run = await loadDiffRun(runPath, { temporaryRoot });
+    if (await isCommittedAppendRetry(run, snapshot, {
+      contextOperation,
+      expectedSnapshotDigest,
+      previousLimitCount,
+      previousSourceCount,
+    })) {
+      return run;
+    }
     const ready = run.manifest.phase === "inspected"
       && run.manifest.deliveredPage === run.manifest.pageCount
       && checkpointCount(run.ledger, run.manifest.generation)
@@ -1345,10 +1518,14 @@ export async function appendDiffRunPlan(runValue, snapshot, {
     const pagesFile = `pages.${snapshot.digest}.json`;
     const snapshotPath = join(run.path, snapshotFile);
     const pagesPath = join(run.path, pagesFile);
-    await rm(snapshotPath, { force: true });
-    await rm(pagesPath, { force: true });
-    await writeJson(snapshotPath, snapshot);
-    await writeJson(pagesPath, pages);
+    await writeNewOrMatchingJson(snapshotPath, snapshot, {
+      name: "context snapshot",
+      writeJson,
+    });
+    await writeNewOrMatchingJson(pagesPath, pages, {
+      name: "context inspection plan",
+      writeJson,
+    });
     await writeInspectionPageFiles(run.path, snapshot.digest, pages, writeJson);
     const ledgerState = validateLedgerState({
       ...run.ledgerState,
@@ -1362,20 +1539,19 @@ export async function appendDiffRunPlan(runValue, snapshot, {
       })),
     }, run.manifest.runId);
     const ledgerStateFile = `ledger-state.${generation}.json`;
-    await writeJson(join(run.path, ledgerStateFile), ledgerState);
+    await writeNewOrMatchingJson(join(run.path, ledgerStateFile), ledgerState, {
+      maximumBytes: LIMITS.ledgerStateBytes,
+      name: "context checkpoint state",
+      writeJson,
+    });
     await claim.assertOwned();
-    const operationRecord = contextOperation
-      ? {
-          collected: contextOperation.collected,
-          generation,
-          limitsAdded: contextOperation.limitsAdded,
-          pageCount: pages.length,
-          requestIds: [...contextOperation.requestIds],
-          resources,
-          retainedCheckpoints: run.ledgerState.checkpointCount,
-          snapshotDigest: snapshot.digest,
-        }
-      : undefined;
+    const operationRecord = contextOperationRecord(contextOperation, {
+      generation,
+      pageCount: pages.length,
+      resources,
+      retainedCheckpoints: run.ledgerState.checkpointCount,
+      snapshotDigest: snapshot.digest,
+    });
     await replaceManifest(run.manifestPath, {
       ...run.manifest,
       completedGenerations: [

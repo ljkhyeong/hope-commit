@@ -27,6 +27,7 @@ import {
   createDiffRun,
   inspectDiffRunWindow,
   loadDiffRun,
+  loadDiffRunIdentity,
   removeDiffRun,
 } from "./run.mjs";
 import { resolveLocalCommitTarget } from "./target.mjs";
@@ -144,6 +145,12 @@ async function renderValidatedAnalysis(validated, dependencies = {}) {
   return await module.renderReview(validated);
 }
 
+function sameRunDirectoryIdentity(left, right) {
+  return left.dev === right.dev
+    && left.ino === right.ino
+    && left.mode === right.mode;
+}
+
 function withCleanupFailure(error, cleanupError) {
   const original = error instanceof Error ? error : new Error(String(error));
   if (cleanupError?.code === "HOPE_DIFF_RUN_REPLACED") {
@@ -168,7 +175,11 @@ function withCleanupFailure(error, cleanupError) {
   }
   const combined = new Error(
     `${original.message} Hope could not remove its private review data after this failure. `
-      + "It remains in restricted temporary storage and a later Hope run will retry expiry cleanup.",
+      + (
+        cleanupError?.preservedPath
+          ? `It remains at ${cleanupError.preservedPath}. A later Hope run will retry expiry cleanup.`
+          : "It remains in restricted temporary storage and a later Hope run will retry expiry cleanup."
+      ),
     { cause: original },
   );
   combined.name = original.name;
@@ -176,6 +187,9 @@ function withCleanupFailure(error, cleanupError) {
   if (original.canRetry !== undefined) combined.canRetry = original.canRetry;
   if (original.command !== undefined) combined.command = original.command;
   if (original.outputPath !== undefined) combined.outputPath = original.outputPath;
+  if (cleanupError?.preservedPath !== undefined) {
+    combined.preservedPath = cleanupError.preservedPath;
+  }
   if (original.preservedPath !== undefined) {
     combined.preservedPath = original.preservedPath;
   }
@@ -252,9 +266,12 @@ function publicationRetryable(error, runPath) {
 }
 
 function postPublicationCleanupFailure(ticket, cleanupError, runPath) {
+  const preserved = cleanupError?.preservedPath
+    ? ` It remains at ${cleanupError.preservedPath}; a later Hope run will retry expiry cleanup.`
+    : "";
   const failure = new Error(
     `Hope created the review at ${ticket.outputPath}, but could not remove its `
-      + "private review data. Do not retry finish.",
+      + `private review data.${preserved} Do not retry finish.`,
     { cause: cleanupError },
   );
   failure.code = DIFF_CLEANUP_FAILED_CODE;
@@ -540,14 +557,16 @@ export async function validateDiff(runPath, dependencies = {}) {
 }
 
 export async function finishDiff(runPath, dependencies = {}) {
-  const run = await (dependencies.loadRun ?? loadDiffRun)(runPath, {
+  const identity = await (
+    dependencies.loadRunIdentity ?? loadDiffRunIdentity
+  )(runPath, {
     temporaryRoot: dependencies.temporaryRoot,
   });
   let mutationClaim;
   try {
     mutationClaim = await (
       dependencies.claimMutation ?? claimDiffRunMutation
-    )(run);
+    )(identity);
   } catch (error) {
     if (error?.code === "EEXIST") {
       throw new Error("This Hope Commit run is already being finalized");
@@ -556,6 +575,16 @@ export async function finishDiff(runPath, dependencies = {}) {
   }
   let primaryError;
   try {
+    await mutationClaim.assertOwned();
+    const run = await (dependencies.loadRun ?? loadDiffRun)(identity.path, {
+      temporaryRoot: dependencies.temporaryRoot,
+    });
+    if (
+      run.manifest.runId !== identity.manifest.runId
+      || !sameRunDirectoryIdentity(run.directory, identity.directory)
+    ) {
+      throw new Error("Hope Commit run ownership changed before finalization");
+    }
     assertAnalysisReady(run);
 
     let validated;
