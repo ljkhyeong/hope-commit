@@ -1,6 +1,6 @@
 {
   "name": "hope-commit",
-  "version": "3.1.1",
+  "version": "3.1.2",
   "description": "Review local Git commits as evidence-linked offline HTML, alongside Hope's original alignment, maintenance, review, PR explanation, and writing skills. Requires Node.js 22 or newer.",
   "author": {
     "name": "ljkhyeong",

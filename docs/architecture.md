@@ -193,7 +193,8 @@ Do not edit generated package files by hand.
 - Node tests cover Align identity, revisions, rendering, and safe publication;
   Diff parsing, snapshots, citations, rendering, stale-source checks, bounded
   input, temporary-state ownership, and safe publication; and Commit Diff's
-  commit resolution, root and merge handling, immutable blobs, and renames.
+  commit resolution, root and merge handling, immutable blobs, renames, and
+  exact-revision context collection.
 - Browser tests cover the original artifacts' layout, keyboard behavior,
   accessibility, responsive navigation, printing, and no-JavaScript reading.
 - Package tests cover direct Skill sources, the generated license, and the

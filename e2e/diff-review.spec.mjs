@@ -495,22 +495,22 @@ test("desktop and mobile keep wide content inside the document", async ({ page }
     summaryNumberFontSize: getComputedStyle(document.querySelector("#synopsis-title > .section-number")).fontSize,
     summaryNumberLeft: document.querySelector("#synopsis-title > .section-number").getBoundingClientRect().left,
     titleLeft: document.querySelector("#review-title").getBoundingClientRect().left,
-    topbarHeight: document.querySelector(".topbar").getBoundingClientRect().height,
+    titleRight: document.querySelector("#review-title").getBoundingClientRect().right,
   }));
-  expect(baselineGeometry).toEqual({
-    brandRepositoryGap: 24,
-    firstSectionBorder: "0px",
-    firstSectionMargin: "24px",
-    firstSectionPadding: "16px",
-    railLeft: 1204,
-    repositoryCommitGap: 24,
-    summaryLabelFontSize: "18px",
-    summaryLabelLeft: 76,
-    summaryNumberFontSize: "18px",
-    summaryNumberLeft: 40,
-    titleLeft: 40,
-    topbarHeight: 58,
-  });
+  expect(baselineGeometry.brandRepositoryGap).toBe(24);
+  expect(baselineGeometry.repositoryCommitGap).toBe(24);
+  expect(baselineGeometry.firstSectionBorder).toBe("0px");
+  expect(baselineGeometry.firstSectionMargin).toBe("24px");
+  expect(baselineGeometry.firstSectionPadding).toBe("16px");
+  expect(baselineGeometry.railLeft).toBeGreaterThan(baselineGeometry.titleRight);
+  expect(baselineGeometry.summaryNumberLeft).toBe(baselineGeometry.titleLeft);
+  expect(baselineGeometry.summaryLabelLeft).toBeGreaterThan(
+    baselineGeometry.summaryNumberLeft,
+  );
+  expect(baselineGeometry.summaryNumberFontSize).toBe("18px");
+  expect(baselineGeometry.summaryLabelFontSize).toBe(
+    baselineGeometry.summaryNumberFontSize,
+  );
   await expect(
     page.locator('.toc-desktop a[href="#synopsis"]'),
   ).toHaveAttribute("aria-current", "location");

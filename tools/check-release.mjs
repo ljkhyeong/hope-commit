@@ -69,6 +69,23 @@ assert.equal(
   codexPlugin.interface.logo,
   "./assets/hope-protected-light.png",
 );
+const skillAgentPaths = pluginPackageFiles.filter(
+  (path) => /^skills\/[^/]+\/agents\/openai\.yaml$/u.test(path),
+);
+for (const path of skillAgentPaths) {
+  const skillName = path.split("/")[1];
+  const metadata = await read(`plugins/hope-commit/${path}`);
+  assert.match(
+    metadata,
+    new RegExp(`\\$${codexPlugin.name}:${skillName}\\b`, "u"),
+    `${path}가 해당 플러그인의 스킬을 호출해야 합니다.`,
+  );
+  assert.doesNotMatch(
+    metadata,
+    /\$hope:/u,
+    `${path}가 다른 Hope 플러그인을 호출하면 안 됩니다.`,
+  );
+}
 assert.ok(codexMarketplace.plugins.some(
   (entry) => entry.name === "hope-commit" && entry.source.path === "./plugins/hope-commit",
 ));

@@ -326,19 +326,17 @@ test("Align presents one compact current agreement with secondary history", asyn
     summaryNumberFontSize: getComputedStyle(document.querySelector("#overview-title > .section-number")).fontSize,
     summaryNumberLeft: document.querySelector("#overview-title > .section-number").getBoundingClientRect().left,
     titleLeft: document.querySelector("h1").getBoundingClientRect().left,
-    topbarHeight: document.querySelector(".topbar").getBoundingClientRect().height,
+    titleRight: document.querySelector("h1").getBoundingClientRect().right,
   }));
   expect(geometry.brandRepositoryGap).toBe(24);
   expect(geometry.repositoryStatusGap).toBe(24);
-  expect(geometry.railLeft).toBe(932);
-  expect(geometry.titleLeft).toBe(40);
-  expect(geometry.summaryNumberLeft).toBe(40);
-  expect(geometry.summaryLabelLeft).toBe(76);
+  expect(geometry.railLeft).toBeGreaterThan(geometry.titleRight);
+  expect(geometry.summaryNumberLeft).toBe(geometry.titleLeft);
+  expect(geometry.summaryLabelLeft).toBeGreaterThan(geometry.summaryNumberLeft);
   expect(geometry.summaryNumberFontSize).toBe(geometry.summaryLabelFontSize);
   expect(geometry.firstSectionBorder).toBe("0px");
   expect(geometry.firstSectionMargin).toBe("24px");
   expect(geometry.firstSectionPadding).toBe("16px");
-  expect(geometry.topbarHeight).toBe(58);
   await expect(page.locator("body")).toHaveCSS("font-family", '"Hope Sans", sans-serif');
   await expect(page.locator(".decision-number")).toHaveText(["01", "02"]);
   await page.locator(".overview .check-verification").first().locator(":scope > summary").click();

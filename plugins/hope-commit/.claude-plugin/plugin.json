@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "hope-commit",
-  "version": "3.1.1",
+  "version": "3.1.2",
   "description": "Adds local Git commit reviews as evidence-linked offline HTML while retaining Hope's original skills. Requires Node.js 22 or newer.",
   "author": {
     "name": "ljkhyeong",

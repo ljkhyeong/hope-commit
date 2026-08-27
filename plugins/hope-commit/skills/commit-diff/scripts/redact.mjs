@@ -2,7 +2,7 @@ import { basename } from "node:path";
 
 const privatePathPatterns = [
   /^\.env(?:\.|$)/u,
-  /^\.(?:netrc|npmrc|pypirc)$/u,
+  /^\.(?:git-credentials|netrc|npmrc|pypirc)$/u,
   /^(?:id_|ssh_host_).*(?:rsa|dsa|ecdsa|ed25519)(?:\.|$)/u,
   /^(?:credentials|secrets?)(?:\.|$)/u,
 ];

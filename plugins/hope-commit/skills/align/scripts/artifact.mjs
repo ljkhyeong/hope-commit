@@ -911,14 +911,19 @@ async function publicationCheckpoint(root, target, parent, dependencies, step) {
   await verifySafeParent(root, target, parent);
 }
 
-function resolveArtifactTarget(root, requested, requestedRoot = root) {
+function resolveArtifactTarget(
+  root,
+  requested,
+  requestedRoot = root,
+  canonicalRequestedRoot = root,
+) {
   let target;
   if (isAbsolute(requested)) {
     const unresolvedRoot = resolve(requestedRoot);
     const unresolvedTarget = resolve(requested);
     const fromRequestedRoot = relative(unresolvedRoot, unresolvedTarget);
     target = insideRoot(unresolvedRoot, unresolvedTarget)
-      ? resolve(root, fromRequestedRoot)
+      ? resolve(canonicalRequestedRoot, fromRequestedRoot)
       : unresolvedTarget;
   } else {
     target = resolve(root, requested);
@@ -1050,12 +1055,14 @@ function resultFor(path, data, digest) {
 export async function createAlignArtifact({ inputPath, outputPath, root }, dependencies = {}) {
   if (!inputPath || !outputPath) throw new TypeError("inputPath and outputPath are required");
   const requestedRoot = root ?? process.cwd();
-  const resolvedRoot = await repositoryRoot(requestedRoot);
+  const canonicalRequestedRoot = await realpath(requestedRoot);
+  const resolvedRoot = await repositoryRoot(canonicalRequestedRoot);
   const input = await readAlignInput(inputPath);
   const target = resolveArtifactTarget(
     resolvedRoot,
     outputPath,
     requestedRoot,
+    canonicalRequestedRoot,
   );
   const now = dependencies.now?.() ?? new Date();
   const agreedAt = now.toISOString();
@@ -1108,11 +1115,13 @@ export async function reviseAlignArtifact({
     throw new TypeError("expectedDigest must be a lowercase SHA-256 digest");
   }
   const requestedRoot = root ?? process.cwd();
-  const resolvedRoot = await repositoryRoot(requestedRoot);
+  const canonicalRequestedRoot = await realpath(requestedRoot);
+  const resolvedRoot = await repositoryRoot(canonicalRequestedRoot);
   const target = resolveArtifactTarget(
     resolvedRoot,
     artifactPath,
     requestedRoot,
+    canonicalRequestedRoot,
   );
   const parent = await ensureSafeParent(resolvedRoot, target);
   const original = await readAlignArtifactFile(target);

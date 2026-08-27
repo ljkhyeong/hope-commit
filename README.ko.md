@@ -61,7 +61,8 @@ Align은 프로젝트 안에 하나의 HTML 문서를 만듭니다. 현재 세�
 > 생성된 Align 문서는 프로젝트 문서입니다. 사용자가 제외하지 않는 한 관련
 > 변경과 함께 버전 관리에 포함합니다.
 
-**전체 HTML 예시:** [출처 충돌·변경·취소와 확인 책임을 합의한 한국어 팬 일정 Align 문서를 엽니다.](docs/alignments/rescene-fan-calendar.ko.html)
+**전체 HTML 예시:** [출처 충돌·변경·취소와 확인 책임을 합의한 한국어 팬 일정 Align 문서의 파일 페이지를 엽니다.](docs/alignments/rescene-fan-calendar.ko.html)
+파일 페이지에서 HTML을 내려받은 뒤 로컬에서 열면 상호작용을 사용할 수 있습니다.
 
 ![신뢰 가능한 팬 일정의 목표, 완료 기준, 경계를 보여 주는 한국어 Hope Align 예시](assets/readme/hope-align-ko.png)
 
@@ -94,7 +95,8 @@ Diff는 하나의 HTML 문서를 만들어 코드보다 동작을 먼저 설명�
 아래 이미지는 [Ky PR #867](https://github.com/sindresorhus/ky/pull/867)을 바탕으로
 고정된 한국어 Diff 예시에서 만들었습니다.
 
-**전체 HTML 예시:** [Ky PR #867의 재시도 설정을 마이크로월드와 퀴즈로 설명한 한국어 Diff 결과물을 엽니다.](docs/diffs/ky-867-retry-extend.ko.html)
+**전체 HTML 예시:** [Ky PR #867의 재시도 설정을 마이크로월드와 퀴즈로 설명한 한국어 Diff 결과물의 파일 페이지를 엽니다.](docs/diffs/ky-867-retry-extend.ko.html)
+파일 페이지에서 HTML을 내려받은 뒤 로컬에서 열면 상호작용을 사용할 수 있습니다.
 
 ![Ky PR 867의 목표, 이전과 이후 동작, 검증 항목을 보여 주는 한국어 Hope Diff 예시](assets/readme/hope-diff-ko.png)
 

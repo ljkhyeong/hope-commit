@@ -2,4 +2,4 @@ interface:
   display_name: "Hope Align"
   short_description: "Align a goal and preserve its verifiable implementation brief"
   brand_color: "#006FBE"
-  default_prompt: "Use $hope:align to build a shared understanding before implementation."
+  default_prompt: "Use $hope-commit:align to build a shared understanding before implementation."

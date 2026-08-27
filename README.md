@@ -69,9 +69,10 @@ first, uses web search when needed, and presents two or three image mockups.
 > Generated Align briefs are project documentation. Later version-control work
 > includes them with related project changes unless the person excludes them.
 
-**Complete example HTML:** [Open the English Align brief for a fan schedule that
-makes source conflicts, changes, cancellations, and verification ownership
-explicit.](docs/alignments/rescene-fan-calendar.en.html)
+**Complete example HTML:** [Open the English Align brief file page for a fan
+schedule that makes source conflicts, changes, cancellations, and verification
+ownership explicit.](docs/alignments/rescene-fan-calendar.en.html) Download the
+file from that page, then open it locally to use its interactions.
 
 The captures below come from this example. It uses sample data and does not
 represent the live `rescene.fan` interface.
@@ -111,8 +112,10 @@ understanding in follow-up decisions and work.
 The captures below come from a fixed English Diff example based on
 [Ky PR #867](https://github.com/sindresorhus/ky/pull/867).
 
-**Complete example HTML:** [Open the English Diff artifact for Ky PR #867 with
-its retry-configuration microworld and quiz.](docs/diffs/ky-867-retry-extend.en.html)
+**Complete example HTML:** [Open the English Diff artifact file page for Ky PR
+#867 with its retry-configuration microworld and
+quiz.](docs/diffs/ky-867-retry-extend.en.html) Download the file from that page,
+then open it locally to use its interactions.
 
 ![English Hope Diff example for Ky pull request 867 showing the goal, before and after behavior, and verification item](assets/readme/hope-diff-en.png)
 
