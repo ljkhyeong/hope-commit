@@ -59,7 +59,7 @@ async function runGit(repositoryPath, arguments_, {
   try {
     const { stdout } = await exec(
       "git",
-      ["-C", repositoryPath, ...arguments_],
+      ["-C", repositoryPath, "--literal-pathspecs", ...arguments_],
       { encoding, maxBuffer, timeout },
     );
     return stdout;

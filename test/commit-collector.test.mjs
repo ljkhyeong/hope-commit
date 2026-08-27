@@ -152,6 +152,37 @@ test("preserves rename identity and line counts", async (t) => {
   assert.equal(snapshot.files[0].deletions, 0);
 });
 
+test("treats changed file names as literal Git paths", async (t) => {
+  const fixture = await repositoryFixture();
+  t.after(async () => rm(fixture.repository, { force: true, recursive: true }));
+
+  await writeFile(join(fixture.repository, "[a].txt"), "literal before\n", "utf8");
+  await writeFile(join(fixture.repository, "a.txt"), "pattern before\n", "utf8");
+  git(fixture.repository, "add", "--", "[a].txt", "a.txt");
+  git(fixture.repository, "commit", "-m", "Add pathspec fixtures");
+  await writeFile(join(fixture.repository, "[a].txt"), "literal after\nsecond line\n", "utf8");
+  await writeFile(join(fixture.repository, "a.txt"), "pattern after\nsecond line\nthird line\n", "utf8");
+  git(fixture.repository, "add", "--", "[a].txt", "a.txt");
+  git(fixture.repository, "commit", "-m", "Change pathspec fixtures");
+
+  const snapshot = await collectLocalGitCommit({
+    commit: git(fixture.repository, "rev-parse", "HEAD"),
+    repositoryPath: fixture.repository,
+  }, {
+    locale: "en-US",
+    localeSource: "explicit",
+    theme: "system",
+    themeSource: "default",
+  });
+  const literalFile = snapshot.files.find((file) => file.path === "[a].txt");
+  const patch = snapshot.sources.find((source) => source.fileId === literalFile.id)?.text;
+
+  assert.equal(literalFile.additions, 2);
+  assert.equal(literalFile.deletions, 1);
+  assert.match(patch, /diff --git a\/\[a\]\.txt b\/\[a\]\.txt/u);
+  assert.doesNotMatch(patch, /diff --git a\/a\.txt b\/a\.txt/u);
+});
+
 test("rejects non-hexadecimal target strings", () => {
   assert.throws(
     () => parseCommitTargetArgument("HEAD; touch unexpected"),
