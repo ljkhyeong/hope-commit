@@ -304,7 +304,7 @@ test("development installation verifies the selected plugin and cache", async (c
     arguments_: [
       "plugin",
       "add",
-      "hope-commit@hope-commit",
+      "hope@hope-commit",
       "--json",
     ],
     command: "codex-test",
@@ -315,8 +315,8 @@ test("development installation verifies the selected plugin and cache", async (c
     "utf8",
   ));
   const installResult = parseInstallResult(JSON.stringify({
-    pluginId: "hope-commit@hope-commit",
-    name: "hope-commit",
+    pluginId: "hope@hope-commit",
+    name: "hope",
     marketplaceName: "hope-commit",
     version: manifest.version,
     installedPath: temporaryRoot,

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { redactionKind as commitRedactionKind } from "../plugins/hope-commit/skills/commit-diff/scripts/redact.mjs";
+import { redactionKind as commitRedactionKind } from "../plugins/hope-commit/skills/commit/scripts/redact.mjs";
 import { redactionKind as diffRedactionKind } from "../plugins/hope-commit/skills/diff/scripts/redact.mjs";
 
 const implementations = Object.freeze([

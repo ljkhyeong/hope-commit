@@ -63,8 +63,8 @@ export function parseInstallResult(stdout, expectedVersion) {
     throw new Error("Codex did not return a JSON plugin install result");
   }
   if (
-    result.pluginId !== "hope-commit@hope-commit"
-    || result.name !== "hope-commit"
+    result.pluginId !== "hope@hope-commit"
+    || result.name !== "hope"
     || result.marketplaceName !== "hope-commit"
     || result.version !== expectedVersion
     || typeof result.installedPath !== "string"
@@ -121,7 +121,7 @@ export function installCodexPluginFromLocalMarketplace({
   return runCommand(codexCommand, [
     "plugin",
     "add",
-    "hope-commit@hope-commit",
+    "hope@hope-commit",
     "--json",
   ]);
 }

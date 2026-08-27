@@ -4,10 +4,10 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import test, { after } from "node:test";
 
-import { LIMITS } from "../plugins/hope-commit/skills/commit-diff/scripts/constants.mjs";
+import { LIMITS } from "../plugins/hope-commit/skills/commit/scripts/constants.mjs";
 import {
   collectLocalGitContext,
-} from "../plugins/hope-commit/skills/commit-diff/scripts/git-context.mjs";
+} from "../plugins/hope-commit/skills/commit/scripts/git-context.mjs";
 import {
   registerTestTemporaryDirectoryCleanup,
 } from "../test-support/temporary-directory.mjs";

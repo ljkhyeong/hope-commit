@@ -8,11 +8,11 @@ import test from "node:test";
 import {
   collectLocalGitCommit,
   revalidateLocalGitSnapshot,
-} from "../plugins/hope-commit/skills/commit-diff/scripts/git.mjs";
+} from "../plugins/hope-commit/skills/commit/scripts/git.mjs";
 import {
   parseCommitTargetArgument,
   resolveLocalCommitTarget,
-} from "../plugins/hope-commit/skills/commit-diff/scripts/target.mjs";
+} from "../plugins/hope-commit/skills/commit/scripts/target.mjs";
 
 function git(repository, ...arguments_) {
   return execFileSync("git", ["-C", repository, ...arguments_], {

@@ -5,7 +5,7 @@
   },
   "plugins": [
     {
-      "name": "hope-commit",
+      "name": "hope",
       "source": {
         "source": "local",
         "path": "./plugins/hope-commit"

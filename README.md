@@ -41,7 +41,7 @@ ownership, and atomic publication guarantees.
 Example request:
 
 ```text
-Use $hope-commit:commit-diff to review commit f6363ced in this repository and create Korean HTML.
+Use $hope:commit to review commit f6363ced in this repository and create Korean HTML.
 ```
 
 ---
@@ -207,18 +207,23 @@ You need:
 
 To install it yourself, run the commands for your host.
 
+Hope Commit uses the same `$hope:*` Skill namespace as the original Hope
+plugin. Remove or disable another Hope installation before installing this
+fork. When upgrading from Hope Commit 3.x, also remove the old
+`hope-commit@hope-commit` installation so its previous namespace is not loaded.
+
 For example:
 
 ```bash
 # Codex
 codex plugin marketplace add ljkhyeong/hope-commit
-codex plugin add hope-commit@hope-commit
+codex plugin add hope@hope-commit
 ```
 
 ```bash
 # Claude Code
 claude plugin marketplace add ljkhyeong/hope-commit
-claude plugin install hope-commit@hope-commit
+claude plugin install hope@hope-commit
 ```
 
 ## License

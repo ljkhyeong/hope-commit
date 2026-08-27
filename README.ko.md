@@ -38,7 +38,7 @@ unstaged, untracked 파일은 캡처한 리뷰에 영향을 주지 않습니다.
 요청 예시:
 
 ```text
-이 저장소의 커밋 f6363ced를 $hope-commit:commit-diff로 검토하고 한국어 HTML을 만들어줘.
+이 저장소의 커밋 f6363ced를 $hope:commit으로 검토하고 한국어 HTML을 만들어줘.
 ```
 
 ---
@@ -178,17 +178,22 @@ Write의 공통 기준은 조지 오웰의
 
 직접 설치하려면 사용 중인 도구의 명령을 실행하세요.
 
+Hope Commit은 원본 Hope와 동일한 `$hope:*` Skill 네임스페이스를 사용합니다.
+이 포크를 설치하기 전에 다른 Hope 설치를 제거하거나 비활성화하세요. Hope Commit
+3.x에서 올리는 경우에는 이전 네임스페이스가 함께 로드되지 않도록
+`hope-commit@hope-commit` 설치도 제거해야 합니다.
+
 예시:
 ```bash
 # Codex
 codex plugin marketplace add ljkhyeong/hope-commit
-codex plugin add hope-commit@hope-commit
+codex plugin add hope@hope-commit
 ```
 
 ```bash
 # Claude Code
 claude plugin marketplace add ljkhyeong/hope-commit
-claude plugin install hope-commit@hope-commit
+claude plugin install hope@hope-commit
 ```
 
 ## 라이선스

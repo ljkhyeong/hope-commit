@@ -105,7 +105,7 @@ plugins/hope-commit/
     │   ├── references/
     │   ├── scripts/
     │   └── assets/
-    ├── commit-diff/
+    ├── commit/
     │   ├── SKILL.md
     │   ├── references/
     │   ├── scripts/
@@ -162,7 +162,7 @@ publication.
 
 [Align's artifact contract](../plugins/hope-commit/skills/align/references/artifact.md)
 and [Diff's runtime contract](../plugins/hope-commit/skills/diff/references/runtime.md)
-and [Commit Diff's runtime contract](../plugins/hope-commit/skills/commit-diff/references/runtime.md)
+and [Commit Diff's runtime contract](../plugins/hope-commit/skills/commit/references/runtime.md)
 define the feature-specific guarantees enforced at those boundaries.
 
 Extract shared code only after another feature needs the same invariant.

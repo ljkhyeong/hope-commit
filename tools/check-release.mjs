@@ -51,10 +51,18 @@ assert.equal(packageLock.version, currentVersion);
 assert.equal(packageLock.packages[""].version, currentVersion);
 assert.equal(packageJson.bin, undefined);
 assert.equal(packageJson.scripts.hope, undefined);
-assert.equal(codexPlugin.name, "hope-commit");
+assert.equal(codexPlugin.name, "hope");
 assert.equal(codexPlugin.version, currentVersion);
 assert.equal(codexPlugin.interface.defaultPrompt.length, 3);
-assert.equal(claudePlugin.name, "hope-commit");
+assert.ok(
+  codexPlugin.interface.defaultPrompt.every((prompt) => prompt.includes("$hope:")),
+  "Codex 기본 프롬프트가 Hope 스킬 네임스페이스를 사용해야 합니다.",
+);
+assert.ok(
+  codexPlugin.interface.defaultPrompt.some((prompt) => prompt.includes("$hope:commit")),
+  "Codex 기본 프롬프트에 커밋 스킬이 포함되어야 합니다.",
+);
+assert.equal(claudePlugin.name, "hope");
 assert.equal(claudePlugin.version, currentVersion);
 if (process.env.GITHUB_REF_TYPE === "tag") {
   assert.equal(process.env.GITHUB_REF_NAME, `v${currentVersion}`);
@@ -74,7 +82,15 @@ const skillAgentPaths = pluginPackageFiles.filter(
 );
 for (const path of skillAgentPaths) {
   const skillName = path.split("/")[1];
-  const metadata = await read(`plugins/hope-commit/${path}`);
+  const [metadata, instructions] = await Promise.all([
+    read(`plugins/hope-commit/${path}`),
+    read(`plugins/hope-commit/skills/${skillName}/SKILL.md`),
+  ]);
+  assert.match(
+    instructions,
+    new RegExp(`^name: ${skillName}$`, "mu"),
+    `skills/${skillName}/SKILL.md의 이름이 디렉터리와 같아야 합니다.`,
+  );
   assert.match(
     metadata,
     new RegExp(`\\$${codexPlugin.name}:${skillName}\\b`, "u"),
@@ -82,15 +98,15 @@ for (const path of skillAgentPaths) {
   );
   assert.doesNotMatch(
     metadata,
-    /\$hope:/u,
-    `${path}가 다른 Hope 플러그인을 호출하면 안 됩니다.`,
+    /\$hope-commit:/u,
+    `${path}가 이전 Hope Commit 네임스페이스를 호출하면 안 됩니다.`,
   );
 }
 assert.ok(codexMarketplace.plugins.some(
-  (entry) => entry.name === "hope-commit" && entry.source.path === "./plugins/hope-commit",
+  (entry) => entry.name === "hope" && entry.source.path === "./plugins/hope-commit",
 ));
 const claudeMarketplaceEntry = claudeMarketplace.plugins.find(
-  (entry) => entry.name === "hope-commit",
+  (entry) => entry.name === "hope",
 );
 assert.equal(claudeMarketplaceEntry.source, "./plugins/hope-commit");
 assert.equal(claudeMarketplaceEntry.version, undefined);

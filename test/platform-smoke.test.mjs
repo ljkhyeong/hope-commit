@@ -33,7 +33,7 @@ test("the staged plugin runs from an external platform path", async (context) =>
     join(destination, ".codex-plugin", "plugin.json"),
     "utf8",
   ));
-  assert.equal(manifest.name, "hope-commit");
+  assert.equal(manifest.name, "hope");
   assert.equal(manifest.skills, "./skills/");
 
   const outsideRepository = join(temporaryRoot, "outside repository");
@@ -64,7 +64,7 @@ test("the staged plugin runs from an external platform path", async (context) =>
 
   const commitDiffHelp = spawnSync(
     process.execPath,
-    [join(destination, "skills", "commit-diff", "scripts", "cli.mjs"), "--help"],
+    [join(destination, "skills", "commit", "scripts", "cli.mjs"), "--help"],
     {
       cwd: outsideRepository,
       encoding: "utf8",

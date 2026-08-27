@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const skillsRoot = resolve(root, "plugins/hope-commit/skills");
-const deterministicSkills = Object.freeze(["align", "commit-diff", "diff"]);
+const deterministicSkills = Object.freeze(["align", "commit", "diff"]);
 const instructionLedSkills = Object.freeze([
   "polish",
   "sweep",
@@ -30,16 +30,16 @@ test("each feature has one editable Skill boundary", async () => {
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)
     .sort();
-  assert.deepEqual(skillNames, ["align", "commit-diff", "diff", ...instructionLedSkills]);
+  assert.deepEqual(skillNames, ["align", "commit", "diff", ...instructionLedSkills]);
 
   const alignScript = resolve(skillsRoot, "align/scripts/cli.mjs");
-  const commitDiffScript = resolve(skillsRoot, "commit-diff/scripts/cli.mjs");
+  const commitDiffScript = resolve(skillsRoot, "commit/scripts/cli.mjs");
   const diffScript = resolve(skillsRoot, "diff/scripts/cli.mjs");
   assert.equal(await exists(alignScript), true);
   assert.equal(await exists(commitDiffScript), true);
   assert.equal(await exists(diffScript), true);
   const align = await readFile(resolve(skillsRoot, "align/SKILL.md"), "utf8");
-  const commitDiff = await readFile(resolve(skillsRoot, "commit-diff/SKILL.md"), "utf8");
+  const commitDiff = await readFile(resolve(skillsRoot, "commit/SKILL.md"), "utf8");
   const diff = await readFile(resolve(skillsRoot, "diff/SKILL.md"), "utf8");
   assert.match(align, /scripts\/cli\.mjs/u);
   assert.match(commitDiff, /scripts\/cli\.mjs/u);
@@ -106,7 +106,7 @@ test("feature scripts depend only on their owning Skill", async () => {
 
   const [alignRender, commitDiffRender, diffRender] = await Promise.all([
     readFile(resolve(skillsRoot, "align/scripts/render.mjs"), "utf8"),
-    readFile(resolve(skillsRoot, "commit-diff/scripts/render.mjs"), "utf8"),
+    readFile(resolve(skillsRoot, "commit/scripts/render.mjs"), "utf8"),
     readFile(resolve(skillsRoot, "diff/scripts/render.mjs"), "utf8"),
   ]);
   assert.match(alignRender, /\.\/design\/tokens\.mjs/u);

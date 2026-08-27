@@ -8,8 +8,8 @@ import {
 import { join } from "node:path";
 import test, { after } from "node:test";
 
-import { main as runCommitCommand } from "../plugins/hope-commit/skills/commit-diff/scripts/cli.mjs";
-import { loadDiffRun } from "../plugins/hope-commit/skills/commit-diff/scripts/run.mjs";
+import { main as runCommitCommand } from "../plugins/hope-commit/skills/commit/scripts/cli.mjs";
+import { loadDiffRun } from "../plugins/hope-commit/skills/commit/scripts/run.mjs";
 import {
   registerTestTemporaryDirectoryCleanup,
 } from "../test-support/temporary-directory.mjs";
