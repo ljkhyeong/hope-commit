@@ -107,17 +107,31 @@ export async function verifyInstalledPlugin(installedPath) {
   return expectedFiles;
 }
 
-export async function installDevPlugin({ codexCommand = "codex" } = {}) {
-  await buildPlugin();
-  run(process.execPath, ["tools/check-release.mjs"]);
-
-  const manifest = JSON.parse(await readFile(sourceManifest, "utf8"));
-  const install = run(codexCommand, [
+export function installCodexPluginFromLocalMarketplace({
+  codexCommand = "codex",
+  runCommand = run,
+} = {}) {
+  runCommand(codexCommand, [
+    "plugin",
+    "marketplace",
+    "add",
+    root,
+    "--json",
+  ]);
+  return runCommand(codexCommand, [
     "plugin",
     "add",
     "hope-commit@hope-commit",
     "--json",
   ]);
+}
+
+export async function installDevPlugin({ codexCommand = "codex" } = {}) {
+  await buildPlugin();
+  run(process.execPath, ["tools/check-release.mjs"]);
+
+  const manifest = JSON.parse(await readFile(sourceManifest, "utf8"));
+  const install = installCodexPluginFromLocalMarketplace({ codexCommand });
   const result = parseInstallResult(install.stdout, manifest.version);
   await verifyInstalledPlugin(result.installedPath);
   process.stdout.write(

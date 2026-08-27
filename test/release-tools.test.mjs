@@ -16,6 +16,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { makeAnalysis, makeSnapshot } from "../test-support/diff-fixture.mjs";
 import { normalizeLineEndings } from "../tools/build-plugin.mjs";
 import {
+  installCodexPluginFromLocalMarketplace,
   parseInstallResult,
   verifyInstalledPlugin,
 } from "../tools/install-plugin-dev.mjs";
@@ -282,6 +283,33 @@ test("development installation verifies the selected plugin and cache", async (c
   const temporaryRoot = await mkdtemp(join(tmpdir(), "hope-dev-cache-test-"));
   context.after(async () => await rm(temporaryRoot, { recursive: true, force: true }));
 
+  const commands = [];
+  const commandResult = { stdout: "installed" };
+  assert.equal(installCodexPluginFromLocalMarketplace({
+    codexCommand: "codex-test",
+    runCommand(command, arguments_) {
+      commands.push({ arguments_, command });
+      return commandResult;
+    },
+  }), commandResult);
+  assert.equal(commands.length, 2);
+  assert.equal(commands[0].command, "codex-test");
+  assert.deepEqual(
+    commands[0].arguments_.slice(0, 3),
+    ["plugin", "marketplace", "add"],
+  );
+  assert.equal(resolve(commands[0].arguments_[3]), root);
+  assert.deepEqual(commands[0].arguments_.slice(4), ["--json"]);
+  assert.deepEqual(commands[1], {
+    arguments_: [
+      "plugin",
+      "add",
+      "hope-commit@hope-commit",
+      "--json",
+    ],
+    command: "codex-test",
+  });
+
   const manifest = JSON.parse(await readFile(
     join(pluginRoot, ".codex-plugin/plugin.json"),
     "utf8",
@@ -340,7 +368,12 @@ test("release file lists compare across platform line endings", () => {
 
 test("CI keeps release decisions local and publishes a checked package", async () => {
   const verify = await readFile(join(root, ".github/workflows/verify.yml"), "utf8");
+  const changeTitle = await readFile(
+    join(root, ".github/workflows/change-title.yml"),
+    "utf8",
+  );
   const release = await readFile(join(root, ".github/workflows/release.yml"), "utf8");
+  const workflows = [verify, changeTitle, release];
 
   const verifyInstall = verify.indexOf("- run: npm ci");
   const releaseCheck = release.indexOf("node tools/check-release.mjs");
@@ -349,6 +382,22 @@ test("CI keeps release decisions local and publishes a checked package", async (
   const releasePublish = release.indexOf("- name: Publish recorded release");
   assert.ok(verifyInstall >= 0, "verify workflow must install dependencies");
   assert.ok(verifyInstall < verify.indexOf("- run: npm run check"));
+  assert.match(
+    verify,
+    /git diff --exit-code --\s+plugins\/hope-commit\/LICENSE\s+plugins\/hope-commit\/NOTICE\s+tools\/plugin-package-files\.txt/u,
+  );
+  assert.doesNotMatch(verify, /plugins\/hope\/LICENSE/u);
+  for (const workflow of workflows) {
+    const actionReferences = [
+      ...workflow.matchAll(/actions\/(?:checkout|setup-node)@([^\s#]+)/gu),
+    ];
+    assert.ok(actionReferences.length > 0);
+    for (const [, reference] of actionReferences) {
+      assert.match(reference, /^[0-9a-f]{40}$/u);
+    }
+    assert.match(workflow, /actions\/checkout@[0-9a-f]{40}\s+#\s+v7\.\d+\.\d+/u);
+    assert.match(workflow, /actions\/setup-node@[0-9a-f]{40}\s+#\s+v7\.\d+\.\d+/u);
+  }
   assert.doesNotMatch(verify, /tools\/release-impact\.mjs|BASE_REF/u);
   assert.match(release, /push:\s+branches:\s+- main\s+paths:\s+- package\.json/su);
   assert.match(release, /workflow_dispatch/u);
