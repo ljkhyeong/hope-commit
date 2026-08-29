@@ -49,6 +49,12 @@ to remove it safely.
 The runtime rechecks that identity before cleanup and preserves a path whose
 ownership is uncertain.
 
+Before renaming a run for deletion, the runtime writes a restricted sibling
+record that binds the claimed name to the original directory identity. A later
+cleanup can therefore finish an interrupted deletion even when `run.json` was
+already removed. It deletes neither a replaced directory nor an unverified
+record.
+
 Publication creates a new file and never replaces an existing artifact.
 
 A failed collection, validation, render, revalidation, or publication does not

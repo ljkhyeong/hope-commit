@@ -1,6 +1,6 @@
 {
-  "name": "hope-commit",
-  "version": "3.1.1",
+  "name": "hope",
+  "version": "4.0.0",
   "description": "Review local Git commits as evidence-linked offline HTML, alongside Hope's original alignment, maintenance, review, PR explanation, and writing skills. Requires Node.js 22 or newer.",
   "author": {
     "name": "ljkhyeong",
@@ -19,9 +19,9 @@
     "category": "Engineering",
     "capabilities": ["Read", "Write", "Interactive"],
     "defaultPrompt": [
-      "Use $hope-commit:commit-diff to review this commit as offline HTML.",
-      "Use $hope-commit:align to build a shared understanding before implementation.",
-      "Use $hope-commit:toxic-review to challenge this plan."
+      "Use $hope:commit to review this commit as offline HTML.",
+      "Use $hope:align to build a shared understanding before implementation.",
+      "Use $hope:toxic-review to challenge this plan."
     ],
     "brandColor": "#087EA4",
     "composerIcon": "./assets/hope-icon.png",

@@ -4,16 +4,15 @@ import {
   LIMITS,
 } from "./constants.mjs";
 import { validateContextPath } from "./git-context.mjs";
-import { splitEvidenceRange } from "./evidence-range.mjs";
-import { containsBidiControl } from "./text.mjs";
+import { splitEvidenceRange } from "../../../review-core/evidence-range.mjs";
+import { containsBidiControl } from "../../../review-core/text.mjs";
 
 const OBSERVATION_KINDS = new Set(["fact", "risk", "question"]);
 const SOURCE_BASIS = Object.freeze({
   code: new Set(["after-file", "before-file", "context-file", "patch"]),
   stated: new Set([
+    "commit-body",
     "commit-title",
-    "pull-request-description",
-    "pull-request-title",
   ]),
 });
 
@@ -657,7 +656,6 @@ function reviewContextGroups(snapshot) {
     value: Object.freeze({
       kind: "overview",
       commit: snapshot.commit,
-      pullRequest: snapshot.pullRequest,
       repository: snapshot.repository,
       settings: snapshot.settings,
       snapshot: snapshot.snapshot,

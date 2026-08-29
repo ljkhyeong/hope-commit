@@ -7,7 +7,7 @@
   },
   "plugins": [
     {
-      "name": "hope-commit",
+      "name": "hope",
       "source": "./plugins/hope-commit",
       "description": "Adds local Git commit reviews as evidence-linked offline HTML while retaining Hope's original skills. Requires Node.js 22 or newer.",
       "author": {

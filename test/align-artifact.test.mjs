@@ -604,6 +604,37 @@ test("create publishes one owned project artifact without replacing a path", asy
   assert.equal(await readFile(outputPath, "utf8"), html);
 });
 
+test("하위 디렉터리에서 지정한 절대 artifact 경로를 생성과 수정에 그대로 사용한다", async () => {
+  const root = await repository();
+  const workingDirectory = join(root, "packages", "app");
+  await mkdir(workingDirectory, { recursive: true });
+  const outputPath = join(workingDirectory, "docs", "agreement.html");
+  const firstInput = await inputFile(root, "first.json", makeAlignInput());
+  const originalWorkingDirectory = process.cwd();
+
+  try {
+    process.chdir(workingDirectory);
+    const created = await createAlignArtifact({
+      inputPath: firstInput,
+      outputPath,
+    });
+    assert.equal(created.artifactPath, outputPath);
+
+    const secondInput = await inputFile(root, "second.json", makeAlignInput({
+      revisionSummary: "하위 디렉터리 경로 유지",
+    }));
+    const revised = await reviseAlignArtifact({
+      artifactPath: outputPath,
+      expectedDigest: created.digest,
+      inputPath: secondInput,
+    });
+    assert.equal(revised.artifactPath, outputPath);
+    assert.equal(revised.revision, 2);
+  } finally {
+    process.chdir(originalWorkingDirectory);
+  }
+});
+
 test("revise appends a current goal contract to a legacy artifact", async () => {
   const root = await repository();
   const outputPath = join(root, "docs", "alignments", "upload-recovery.html");

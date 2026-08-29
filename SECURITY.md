@@ -31,5 +31,5 @@ input.
 [Diff's runtime contract](plugins/hope-commit/skills/diff/references/runtime.md)
 defines its source, rendering, temporary-state, and publication guarantees.
 
-[Commit Diff's runtime contract](plugins/hope-commit/skills/commit-diff/references/runtime.md)
+[Commit Diff's runtime contract](plugins/hope-commit/skills/commit/references/runtime.md)
 defines the equivalent boundary for immutable local Git commits.

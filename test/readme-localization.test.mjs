@@ -32,6 +32,15 @@ function expectedImages(suffix) {
   return captureNames.map((name) => `assets/readme/hope-${name}-${suffix}.png`);
 }
 
+function assertCommandsInOrder(source, commands) {
+  let offset = 0;
+  for (const command of commands) {
+    const index = source.indexOf(command, offset);
+    assert.notEqual(index, -1, `README is missing command after offset ${offset}: ${command}`);
+    offset = index + command.length;
+  }
+}
+
 test("README examples keep English and Korean assets separate", async () => {
   const [english, korean] = await Promise.all([
     read("README.md"),
@@ -62,6 +71,36 @@ test("README examples show overviews and collapse detailed captures by default",
     assert.deepEqual(collapsedExampleImages(source), [
       images.slice(1, 3),
       images.slice(4),
+    ]);
+  }
+});
+
+test("README migration commands remove the old plugin before installing Hope Commit 4.0", async () => {
+  const readmes = await Promise.all([
+    read("README.md"),
+    read("README.ko.md"),
+  ]);
+
+  for (const source of readmes) {
+    assertCommandsInOrder(source, [
+      "codex plugin remove hope@hope",
+      "codex plugin marketplace add ljkhyeong/hope-commit",
+      "codex plugin add hope@hope-commit",
+    ]);
+    assertCommandsInOrder(source, [
+      "claude plugin uninstall hope@hope",
+      "claude plugin marketplace add ljkhyeong/hope-commit",
+      "claude plugin install hope@hope-commit",
+    ]);
+    assertCommandsInOrder(source, [
+      "codex plugin remove hope-commit@hope-commit",
+      "codex plugin marketplace upgrade hope-commit",
+      "codex plugin add hope@hope-commit",
+    ]);
+    assertCommandsInOrder(source, [
+      "claude plugin uninstall hope-commit@hope-commit",
+      "claude plugin marketplace update hope-commit",
+      "claude plugin install hope@hope-commit",
     ]);
   }
 });

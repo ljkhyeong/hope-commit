@@ -1,22 +1,53 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { execFile as execFileCallback, execFileSync } from "node:child_process";
+import { access, chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
+import { promisify } from "node:util";
 
 import {
   collectLocalGitCommit,
   revalidateLocalGitSnapshot,
-} from "../plugins/hope-commit/skills/commit-diff/scripts/git.mjs";
+} from "../plugins/hope-commit/skills/commit/scripts/git.mjs";
 import {
   parseCommitTargetArgument,
   resolveLocalCommitTarget,
-} from "../plugins/hope-commit/skills/commit-diff/scripts/target.mjs";
+} from "../plugins/hope-commit/skills/commit/scripts/target.mjs";
+
+const execFile = promisify(execFileCallback);
+
+function execFileWithInput(command, arguments_, options, input) {
+  return new Promise((resolvePromise, rejectPromise) => {
+    const child = execFileCallback(
+      command,
+      arguments_,
+      options,
+      (error, stdout, stderr) => {
+        if (error) {
+          error.stdout = stdout;
+          error.stderr = stderr;
+          rejectPromise(error);
+          return;
+        }
+        resolvePromise({ stderr, stdout });
+      },
+    );
+    child.stdin.on("error", () => {});
+    child.stdin.end(input);
+  });
+}
 
 function git(repository, ...arguments_) {
   return execFileSync("git", ["-C", repository, ...arguments_], {
     encoding: "utf8",
+  }).trim();
+}
+
+function gitWithInput(repository, arguments_, input) {
+  return execFileSync("git", ["-C", repository, ...arguments_], {
+    encoding: "utf8",
+    input,
   }).trim();
 }
 
@@ -54,6 +85,11 @@ test("resolves a short commit ID and captures immutable commit blobs", async (t)
 
   assert.equal(snapshot.commit.id, fixture.head);
   assert.equal(snapshot.commit.parent, fixture.root);
+  assert.equal(Object.hasOwn(snapshot, "pullRequest"), false);
+  assert.deepEqual(
+    snapshot.sources.filter((source) => !source.fileId).map((source) => source.kind),
+    ["commit-title", "commit-body"],
+  );
   assert.equal(snapshot.files.length, 1);
   assert.equal(snapshot.files[0].path, "example.txt");
   const patch = snapshot.sources.find((source) => source.kind === "patch")?.text;
@@ -181,6 +217,118 @@ test("treats changed file names as literal Git paths", async (t) => {
   assert.equal(literalFile.deletions, 1);
   assert.match(patch, /diff --git a\/\[a\]\.txt b\/\[a\]\.txt/u);
   assert.doesNotMatch(patch, /diff --git a\/a\.txt b\/a\.txt/u);
+});
+
+test("collects an uncolored patch without running text conversion", async (t) => {
+  const fixture = await repositoryFixture();
+  t.after(async () => rm(fixture.repository, { force: true, recursive: true }));
+  const marker = join(fixture.repository, "textconv-ran");
+  const textconv = join(fixture.repository, "textconv.sh");
+
+  await writeFile(join(fixture.repository, ".gitattributes"), "example.txt diff=marker\n", "utf8");
+  git(fixture.repository, "add", ".gitattributes");
+  git(fixture.repository, "commit", "-m", "Configure text conversion");
+  await writeFile(textconv, `#!/bin/sh\nprintf invoked > "${marker}"\ncat "$1"\n`, "utf8");
+  await chmod(textconv, 0o755);
+  git(fixture.repository, "config", "diff.marker.textconv", textconv);
+  git(fixture.repository, "config", "color.ui", "always");
+  await writeFile(join(fixture.repository, "example.txt"), "plain patch\n", "utf8");
+  git(fixture.repository, "add", "example.txt");
+  git(fixture.repository, "commit", "-m", "Change attributed file");
+
+  const snapshot = await collectLocalGitCommit({
+    commit: git(fixture.repository, "rev-parse", "HEAD"),
+    repositoryPath: fixture.repository,
+  }, {
+    locale: "en-US",
+    localeSource: "explicit",
+    theme: "system",
+    themeSource: "default",
+  });
+  const patch = snapshot.sources.find((source) => source.kind === "patch")?.text;
+
+  await assert.rejects(access(marker), (error) => error?.code === "ENOENT");
+  assert.match(patch, /\+plain patch/u);
+  assert.doesNotMatch(patch, /\u001b|\uFFFD/u);
+});
+
+test("batches changed-line and blob reads across many files", async (t) => {
+  const fixture = await repositoryFixture();
+  t.after(async () => rm(fixture.repository, { force: true, recursive: true }));
+  const addedPaths = Array.from(
+    { length: 32 },
+    (_, index) => `batch-${String(index + 1).padStart(2, "0")}.txt`,
+  );
+  await Promise.all(addedPaths.map((path, index) => writeFile(
+    join(fixture.repository, path),
+    `일괄 수집 ${index + 1}\n`,
+    "utf8",
+  )));
+  git(fixture.repository, "add", "--", ...addedPaths);
+  git(fixture.repository, "commit", "-m", "Add batch fixtures");
+
+  const commands = [];
+  const record = (arguments_) => commands.push(arguments_);
+  const snapshot = await collectLocalGitCommit({
+    commit: git(fixture.repository, "rev-parse", "HEAD"),
+    repositoryPath: fixture.repository,
+  }, {
+    exec: async (command, arguments_, options) => {
+      record(arguments_);
+      return execFile(command, arguments_, options);
+    },
+    execInput: async (command, arguments_, options, input) => {
+      record(arguments_);
+      return execFileWithInput(command, arguments_, options, input);
+    },
+    locale: "ko-KR",
+    localeSource: "explicit",
+    theme: "system",
+    themeSource: "default",
+  });
+
+  assert.equal(snapshot.files.length, addedPaths.length);
+  assert.equal(commands.filter((arguments_) => arguments_.includes("--numstat")).length, 1);
+  assert.equal(commands.filter((arguments_) => arguments_.includes("--batch")).length, 1);
+  assert.equal(commands.filter((arguments_) => (
+    arguments_.includes("cat-file")
+    && (arguments_.includes("-t") || arguments_.includes("-s"))
+  )).length, 0);
+  assert.ok(commands.length <= addedPaths.length + 15, `${commands.length} Git commands`);
+});
+
+test("rejects non-UTF-8 Git paths before decoding them", async (t) => {
+  const fixture = await repositoryFixture();
+  t.after(async () => rm(fixture.repository, { force: true, recursive: true }));
+  const blob = gitWithInput(
+    fixture.repository,
+    ["hash-object", "-w", "--stdin"],
+    Buffer.from("invalid path fixture\n"),
+  );
+  const treeInput = Buffer.concat([
+    Buffer.from(`100644 blob ${blob}\tinvalid-`),
+    Buffer.from([0xff]),
+    Buffer.from(".txt\0"),
+  ]);
+  const tree = gitWithInput(fixture.repository, ["mktree", "-z"], treeInput);
+  const commit = gitWithInput(
+    fixture.repository,
+    ["commit-tree", tree, "-p", fixture.head],
+    "Add invalid path\n",
+  );
+
+  await assert.rejects(
+    collectLocalGitCommit({
+      commit,
+      repositoryPath: fixture.repository,
+    }, {
+      locale: "en-US",
+      localeSource: "explicit",
+      theme: "system",
+      themeSource: "default",
+    }),
+    /does not support non-UTF-8 Git paths/u,
+  );
 });
 
 test("rejects non-hexadecimal target strings", () => {

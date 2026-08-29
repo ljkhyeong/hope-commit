@@ -38,7 +38,7 @@ unstaged, untracked 파일은 캡처한 리뷰에 영향을 주지 않습니다.
 요청 예시:
 
 ```text
-이 저장소의 커밋 f6363ced를 $hope-commit:commit-diff로 검토하고 한국어 HTML을 만들어줘.
+이 저장소의 커밋 f6363ced를 $hope:commit으로 검토하고 한국어 HTML을 만들어줘.
 ```
 
 ---
@@ -61,7 +61,8 @@ Align은 프로젝트 안에 하나의 HTML 문서를 만듭니다. 현재 세�
 > 생성된 Align 문서는 프로젝트 문서입니다. 사용자가 제외하지 않는 한 관련
 > 변경과 함께 버전 관리에 포함합니다.
 
-**전체 HTML 예시:** [출처 충돌·변경·취소와 확인 책임을 합의한 한국어 팬 일정 Align 문서를 엽니다.](docs/alignments/rescene-fan-calendar.ko.html)
+**전체 HTML 예시:** [출처 충돌·변경·취소와 확인 책임을 합의한 한국어 팬 일정 Align 문서의 파일 페이지를 엽니다.](docs/alignments/rescene-fan-calendar.ko.html)
+파일 페이지에서 HTML을 내려받은 뒤 로컬에서 열면 상호작용을 사용할 수 있습니다.
 
 ![신뢰 가능한 팬 일정의 목표, 완료 기준, 경계를 보여 주는 한국어 Hope Align 예시](assets/readme/hope-align-ko.png)
 
@@ -94,7 +95,8 @@ Diff는 하나의 HTML 문서를 만들어 코드보다 동작을 먼저 설명�
 아래 이미지는 [Ky PR #867](https://github.com/sindresorhus/ky/pull/867)을 바탕으로
 고정된 한국어 Diff 예시에서 만들었습니다.
 
-**전체 HTML 예시:** [Ky PR #867의 재시도 설정을 마이크로월드와 퀴즈로 설명한 한국어 Diff 결과물을 엽니다.](docs/diffs/ky-867-retry-extend.ko.html)
+**전체 HTML 예시:** [Ky PR #867의 재시도 설정을 마이크로월드와 퀴즈로 설명한 한국어 Diff 결과물의 파일 페이지를 엽니다.](docs/diffs/ky-867-retry-extend.ko.html)
+파일 페이지에서 HTML을 내려받은 뒤 로컬에서 열면 상호작용을 사용할 수 있습니다.
 
 ![Ky PR 867의 목표, 이전과 이후 동작, 검증 항목을 보여 주는 한국어 Hope Diff 예시](assets/readme/hope-diff-ko.png)
 
@@ -174,20 +176,72 @@ Write의 공통 기준은 조지 오웰의
 > 저장소의 README에 따라 설치하고, 다시 시작해야 한다면 알려 주세요.
 > ```
 
-직접 설치하려면 사용 중인 도구의 명령을 실행하세요.
+직접 설치하려면 아래에서 현재 상황에 맞는 절차를 따르세요.
 
-예시:
+Hope Commit은 원본 Hope와 동일한 `$hope:*` Skill 네임스페이스를 사용합니다.
+두 플러그인을 동시에 활성화하지 마세요.
+
+### 처음 설치
+
+다른 Hope 플러그인이 설치되지 않은 환경에서는 다음 명령을 실행하세요.
+
 ```bash
 # Codex
 codex plugin marketplace add ljkhyeong/hope-commit
-codex plugin add hope-commit@hope-commit
+codex plugin add hope@hope-commit
 ```
 
 ```bash
 # Claude Code
 claude plugin marketplace add ljkhyeong/hope-commit
-claude plugin install hope-commit@hope-commit
+claude plugin install hope@hope-commit
 ```
+
+설치가 끝나면 Codex에서는 새 작업을 시작하세요. Claude Code에서는 새 세션을
+시작하거나 `/reload-plugins`를 실행하세요.
+
+### 원본 Hope에서 전환
+
+원본 `hope@hope`를 사용 중이면 기존 설치를 제거한 뒤 Hope Commit을 설치하세요.
+
+```bash
+# Codex
+codex plugin remove hope@hope
+codex plugin marketplace add ljkhyeong/hope-commit
+codex plugin add hope@hope-commit
+```
+
+```bash
+# Claude Code
+claude plugin uninstall hope@hope
+claude plugin marketplace add ljkhyeong/hope-commit
+claude plugin install hope@hope-commit
+```
+
+전환이 끝나면 Codex에서는 새 작업을 시작하세요. Claude Code에서는 새 세션을
+시작하거나 `/reload-plugins`를 실행하세요.
+
+### Hope Commit 3.x에서 4.0으로 업그레이드
+
+3.x의 `hope-commit@hope-commit`을 먼저 제거하세요. 그다음 기존
+`hope-commit` 마켓플레이스를 갱신하고 새 `hope@hope-commit`을 설치하세요.
+
+```bash
+# Codex
+codex plugin remove hope-commit@hope-commit
+codex plugin marketplace upgrade hope-commit
+codex plugin add hope@hope-commit
+```
+
+```bash
+# Claude Code
+claude plugin uninstall hope-commit@hope-commit
+claude plugin marketplace update hope-commit
+claude plugin install hope@hope-commit
+```
+
+업그레이드가 끝나면 Codex에서는 새 작업을 시작하세요. Claude Code에서는 새
+세션을 시작하거나 `/reload-plugins`를 실행하세요.
 
 ## 라이선스
 

@@ -2,7 +2,7 @@ import {
   LIMITS,
   MICROWORLD_SKELETON_VERSION,
 } from "./constants.mjs";
-import { containsBidiControl } from "./text.mjs";
+import { containsBidiControl } from "../../../review-core/text.mjs";
 
 export const TEACHING_AID_NAMES = Object.freeze([
   "visual",

@@ -15,9 +15,9 @@ import {
   RENDERER_VERSION,
 } from "./constants.mjs";
 import { renderCodeEvidence } from "./code-evidence.mjs";
-import { sha256 } from "./hash.mjs";
+import { sha256 } from "../../../review-core/hash.mjs";
 import { TEACHING_AID_NAMES } from "./teaching-aids.mjs";
-import { exposeBidiControls } from "./text.mjs";
+import { exposeBidiControls } from "../../../review-core/text.mjs";
 
 const fontUrls = Object.freeze({
   code: new URL("../../../assets/fonts/HopeCode.woff2", import.meta.url),
@@ -796,8 +796,8 @@ function evidenceSection(review, dictionary, codeRenderer, fontLicenses, number)
   );
   const sourceRows = otherSources.map((source) => {
     const commitMetadataSource = [
-      "pull-request-title",
-      "pull-request-description",
+      "commit-body",
+      "commit-title",
     ].includes(source.kind);
     const location = source.path
       ? userText(source.path)
@@ -1010,7 +1010,7 @@ function evidenceSection(review, dictionary, codeRenderer, fontLicenses, number)
             <div><dt>${html(label(dictionary, "artifact.capturedAt"))}</dt><dd><time datetime="${html(snapshot.capturedAt)}" title="${html(snapshot.capturedAt)}">${html(formatTimestamp(snapshot.capturedAt))}</time></dd></div>
             <div><dt>${html(label(dictionary, "artifact.provider"))}</dt><dd>Git</dd></div>
             <div><dt>${html(label(dictionary, "artifact.repository"))}</dt><dd>${html(snapshot.repository.owner)}/${html(snapshot.repository.name)}</dd></div>
-            <div><dt>${html(label(dictionary, "artifact.pullRequestTitle"))}</dt><dd>${userText(snapshot.commit.subject)}</dd></div>
+            <div><dt>${html(label(dictionary, "artifact.commitTitle"))}</dt><dd>${userText(snapshot.commit.subject)}</dd></div>
             <div><dt>${html(label(dictionary, "artifact.locale"))}</dt><dd>${html(snapshot.settings.locale)} · ${html(label(dictionary, `source.${snapshot.settings.localeSource}`))}</dd></div>
             <div><dt>${html(label(dictionary, "artifact.theme"))}</dt><dd>${html(label(dictionary, `theme.${snapshot.settings.theme}`))}</dd></div>
           </dl>
@@ -1393,7 +1393,7 @@ bdi[dir="auto"] { overflow-wrap: anywhere; }
   align-items: center;
   gap: ${space2}px;
 }
-.pull-request-link {
+.commit-link {
   display: inline-flex;
   min-height: 44px;
   padding: 0 ${space1}px;
@@ -1406,8 +1406,8 @@ bdi[dir="auto"] { overflow-wrap: anywhere; }
   text-decoration: underline;
   text-underline-offset: 3px;
 }
-.pull-request-link:hover,
-.pull-request-link:focus-visible { color: var(--text); }
+.commit-link:hover,
+.commit-link:focus-visible { color: var(--text); }
 .external-link-icon {
   width: 16px;
   height: 16px;
@@ -2785,7 +2785,7 @@ td:first-child {
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .pull-request-link {
+  .commit-link {
     font-size: ${TYPE.supporting.narrow.fontSize}px;
   }
   .document-title h1 {
@@ -2903,8 +2903,8 @@ td:first-child {
   }
   .topbar-actions { gap: ${space1}px; }
   .commit-status { padding: 2px ${space1}px; }
-  .pull-request-link { padding-inline: 0; }
-  .pull-request-link .external-link-icon { display: none; }
+  .commit-link { padding-inline: 0; }
+  .commit-link .external-link-icon { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -3085,7 +3085,7 @@ export async function renderReview(review, { alternateLocale, fonts } = {}) {
   const openCommitLabel = label(dictionary, "artifact.openCommit")
     .replace("{commit}", review.snapshot.snapshot.head.slice(0, 8));
   const commitLink = commitUrl
-    ? `<a class="pull-request-link" href="${html(commitUrl)}" aria-label="${html(openCommitLabel)}" title="${html(openCommitLabel)}">
+    ? `<a class="commit-link" href="${html(commitUrl)}" aria-label="${html(openCommitLabel)}" title="${html(openCommitLabel)}">
           <span>${html(review.snapshot.snapshot.head.slice(0, 8))}</span>
           <svg class="external-link-icon" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
             <path d="M14 5h5v5"></path>

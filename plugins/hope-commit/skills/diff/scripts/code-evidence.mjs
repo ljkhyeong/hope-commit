@@ -1,4 +1,4 @@
-import { exposeBidiControls } from "./text.mjs";
+import { exposeBidiControls } from "../../../review-core/text.mjs";
 
 function escapeHtml(value) {
   return exposeBidiControls(String(value ?? ""))

@@ -39,7 +39,7 @@ function fakeGitHub({
   const changedFile = providerFile ?? {
     additions: 1,
     deletions: 1,
-    filename: secretFile ? ".env" : "src/error.js",
+    filename: secretFile ? ".npmrc" : "src/error.js",
     patch: incompletePatch ? undefined : "@@ -1 +1 @@\n-old\n+new",
     status: "modified",
   };

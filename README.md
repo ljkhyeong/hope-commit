@@ -41,7 +41,7 @@ ownership, and atomic publication guarantees.
 Example request:
 
 ```text
-Use $hope-commit:commit-diff to review commit f6363ced in this repository and create Korean HTML.
+Use $hope:commit to review commit f6363ced in this repository and create Korean HTML.
 ```
 
 ---
@@ -69,9 +69,10 @@ first, uses web search when needed, and presents two or three image mockups.
 > Generated Align briefs are project documentation. Later version-control work
 > includes them with related project changes unless the person excludes them.
 
-**Complete example HTML:** [Open the English Align brief for a fan schedule that
-makes source conflicts, changes, cancellations, and verification ownership
-explicit.](docs/alignments/rescene-fan-calendar.en.html)
+**Complete example HTML:** [Open the English Align brief file page for a fan
+schedule that makes source conflicts, changes, cancellations, and verification
+ownership explicit.](docs/alignments/rescene-fan-calendar.en.html) Download the
+file from that page, then open it locally to use its interactions.
 
 The captures below come from this example. It uses sample data and does not
 represent the live `rescene.fan` interface.
@@ -111,8 +112,10 @@ understanding in follow-up decisions and work.
 The captures below come from a fixed English Diff example based on
 [Ky PR #867](https://github.com/sindresorhus/ky/pull/867).
 
-**Complete example HTML:** [Open the English Diff artifact for Ky PR #867 with
-its retry-configuration microworld and quiz.](docs/diffs/ky-867-retry-extend.en.html)
+**Complete example HTML:** [Open the English Diff artifact file page for Ky PR
+#867 with its retry-configuration microworld and
+quiz.](docs/diffs/ky-867-retry-extend.en.html) Download the file from that page,
+then open it locally to use its interactions.
 
 ![English Hope Diff example for Ky pull request 867 showing the goal, before and after behavior, and verification item](assets/readme/hope-diff-en.png)
 
@@ -202,21 +205,72 @@ You need:
 > Follow the repository README and tell me if I need to restart.
 > ```
 
-To install it yourself, run the commands for your host.
+To install it yourself, follow the section that matches your current setup.
 
-For example:
+Hope Commit uses the same `$hope:*` Skill namespace as the original Hope
+plugin. Do not enable both plugins at the same time.
+
+### First installation
+
+Run these commands when no other Hope plugin is installed.
 
 ```bash
 # Codex
 codex plugin marketplace add ljkhyeong/hope-commit
-codex plugin add hope-commit@hope-commit
+codex plugin add hope@hope-commit
 ```
 
 ```bash
 # Claude Code
 claude plugin marketplace add ljkhyeong/hope-commit
-claude plugin install hope-commit@hope-commit
+claude plugin install hope@hope-commit
 ```
+
+After installation, start a new Codex task. In Claude Code, start a new session
+or run `/reload-plugins`.
+
+### Move from the original Hope plugin
+
+If you use the original `hope@hope`, remove it before installing Hope Commit.
+
+```bash
+# Codex
+codex plugin remove hope@hope
+codex plugin marketplace add ljkhyeong/hope-commit
+codex plugin add hope@hope-commit
+```
+
+```bash
+# Claude Code
+claude plugin uninstall hope@hope
+claude plugin marketplace add ljkhyeong/hope-commit
+claude plugin install hope@hope-commit
+```
+
+After the move, start a new Codex task. In Claude Code, start a new session or
+run `/reload-plugins`.
+
+### Upgrade from Hope Commit 3.x to 4.0
+
+Remove the 3.x `hope-commit@hope-commit` installation first. Then update its
+`hope-commit` marketplace and install the new `hope@hope-commit` plugin.
+
+```bash
+# Codex
+codex plugin remove hope-commit@hope-commit
+codex plugin marketplace upgrade hope-commit
+codex plugin add hope@hope-commit
+```
+
+```bash
+# Claude Code
+claude plugin uninstall hope-commit@hope-commit
+claude plugin marketplace update hope-commit
+claude plugin install hope@hope-commit
+```
+
+After the upgrade, start a new Codex task. In Claude Code, start a new session
+or run `/reload-plugins`.
 
 ## License
 

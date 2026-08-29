@@ -172,18 +172,7 @@ export function packageDigestAt(reference) {
   const packageFiles = parsePackageFileList(
     readGitFile(commit, "tools/plugin-package-files.txt").toString("utf8"),
   );
-  const forkPluginRoot = "plugins/hope-commit";
-  const upstreamPluginRoot = "plugins/hope";
-  const pluginRoot = git([
-    "ls-tree",
-    "-d",
-    "--name-only",
-    commit,
-    "--",
-    forkPluginRoot,
-  ]).trim() === forkPluginRoot
-    ? forkPluginRoot
-    : upstreamPluginRoot;
+  const pluginRoot = "plugins/hope-commit";
   const tree = new Map(git(["ls-tree", "-r", commit, "--", pluginRoot])
     .split(/\r?\n/u)
     .filter(Boolean)

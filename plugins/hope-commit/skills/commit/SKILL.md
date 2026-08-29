@@ -1,6 +1,6 @@
 ---
-name: commit-diff
-description: This skill should be used only when the user explicitly asks for "Hope Commit", "hope-commit", "$hope-commit:commit-diff", or the "Commit Diff" skill to review a Git commit and create an evidence-linked offline HTML artifact. It should not be selected for a generic commit review, commit explanation, diff analysis, or a message that only contains a commit ID.
+name: commit
+description: This skill should be used only when the user explicitly asks for "Hope Commit", "hope-commit", "$hope:commit", or the "Commit Diff" skill to review a Git commit and create an evidence-linked offline HTML artifact. It should not be selected for a generic commit review, commit explanation, diff analysis, or a message that only contains a commit ID.
 ---
 
 # Hope Commit Diff
@@ -15,7 +15,7 @@ context from Git objects at the captured revisions.
 ## Activation boundary
 
 Run only when the person explicitly names Hope Commit, `hope-commit`,
-`$hope-commit:commit-diff`, or the Commit Diff Skill in the current request.
+`$hope:commit`, or the Commit Diff Skill in the current request.
 
 Do not infer consent from a commit ID, an HTML request, a generic commit review,
 or a request to explain a diff. Leave this Skill unused unless the current request

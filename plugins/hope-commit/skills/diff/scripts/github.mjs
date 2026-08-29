@@ -3,9 +3,9 @@ import { execFile as execFileCallback } from "node:child_process";
 import { promisify } from "node:util";
 
 import { CONTRACT_VERSION, LIMITS } from "./constants.mjs";
-import { digestJson } from "./hash.mjs";
-import { redactionKind } from "./redact.mjs";
-import { containsBidiControl, exposeBidiControls } from "./text.mjs";
+import { digestJson } from "../../../review-core/hash.mjs";
+import { redactionKind } from "../../../review-core/redact.mjs";
+import { containsBidiControl, exposeBidiControls } from "../../../review-core/text.mjs";
 
 const execFile = promisify(execFileCallback);
 const GITHUB_COMMAND_TIMEOUT_MS = 30_000;

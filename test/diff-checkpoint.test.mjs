@@ -12,7 +12,7 @@ import {
   diffLedgerView,
 } from "../plugins/hope-commit/skills/diff/scripts/checkpoint.mjs";
 import { LIMITS } from "../plugins/hope-commit/skills/diff/scripts/constants.mjs";
-import { digestJson } from "../plugins/hope-commit/skills/diff/scripts/hash.mjs";
+import { digestJson } from "../plugins/hope-commit/review-core/hash.mjs";
 import {
   checkpointDiffRunWindow,
   createDiffRun,

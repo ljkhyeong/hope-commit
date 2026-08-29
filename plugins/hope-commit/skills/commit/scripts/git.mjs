@@ -4,13 +4,35 @@ import { basename, resolve } from "node:path";
 import { promisify } from "node:util";
 
 import { CONTRACT_VERSION, LIMITS } from "./constants.mjs";
-import { digestJson } from "./hash.mjs";
-import { redactionKind } from "./redact.mjs";
-import { exposeBidiControls } from "./text.mjs";
+import { digestJson } from "../../../review-core/hash.mjs";
+import { redactionKind } from "../../../review-core/redact.mjs";
+import { exposeBidiControls } from "../../../review-core/text.mjs";
 
 const execFile = promisify(execFileCallback);
 const GIT_TIMEOUT_MS = 30_000;
 const GIT_MAX_BUFFER = 16 * 1024 * 1024;
+const GIT_BATCH_BODY_BYTES = 4 * 1024 * 1024;
+
+function execFileWithInput(command, arguments_, options, input) {
+  return new Promise((resolvePromise, rejectPromise) => {
+    const child = execFileCallback(
+      command,
+      arguments_,
+      options,
+      (error, stdout, stderr) => {
+        if (error) {
+          error.stdout = stdout;
+          error.stderr = stderr;
+          rejectPromise(error);
+          return;
+        }
+        resolvePromise({ stderr, stdout });
+      },
+    );
+    child.stdin.on("error", () => {});
+    child.stdin.end(input);
+  });
+}
 
 function byteLength(value) {
   return Buffer.byteLength(value ?? "", "utf8");
@@ -53,15 +75,22 @@ function validateGitPath(value) {
 async function runGit(repositoryPath, arguments_, {
   encoding = "utf8",
   exec = execFile,
+  execInput = execFileWithInput,
+  input,
   maxBuffer = GIT_MAX_BUFFER,
   timeout = GIT_TIMEOUT_MS,
 } = {}) {
   try {
-    const { stdout } = await exec(
-      "git",
-      ["-C", repositoryPath, "--literal-pathspecs", ...arguments_],
-      { encoding, maxBuffer, timeout },
-    );
+    const commandArguments = [
+      "-C",
+      repositoryPath,
+      "--literal-pathspecs",
+      ...arguments_,
+    ];
+    const commandOptions = { encoding, maxBuffer, timeout };
+    const { stdout } = input === undefined
+      ? await exec("git", commandArguments, commandOptions)
+      : await execInput("git", commandArguments, commandOptions, input);
     return stdout;
   } catch (error) {
     if (error?.code === "ENOENT") {
@@ -146,9 +175,29 @@ async function resolveParent(repositoryPath, commit, parentNumber, options = {})
   });
 }
 
+function nulDelimitedUtf8(buffer, label) {
+  if (!Buffer.isBuffer(buffer)) {
+    throw new TypeError("Hope Commit needs byte-safe Git path output");
+  }
+  const tokens = [];
+  let start = 0;
+  while (start < buffer.length) {
+    const end = buffer.indexOf(0, start);
+    if (end === -1) {
+      throw new Error(`Git returned malformed NUL-delimited ${label}`);
+    }
+    const token = buffer.subarray(start, end);
+    if (!isUtf8(token)) {
+      throw new Error("Hope Commit does not support non-UTF-8 Git paths");
+    }
+    tokens.push(token.toString("utf8"));
+    start = end + 1;
+  }
+  return tokens;
+}
+
 function parseNameStatus(buffer) {
-  const tokens = buffer.toString("utf8").split("\0");
-  if (tokens.at(-1) === "") tokens.pop();
+  const tokens = nulDelimitedUtf8(buffer, "paths");
   const files = [];
   for (let index = 0; index < tokens.length;) {
     const rawStatus = tokens[index++];
@@ -170,6 +219,187 @@ function parseNameStatus(buffer) {
     files.push(Object.freeze({ path, previousPath, providerStatus }));
   }
   return files;
+}
+
+function changedFileKey(path, previousPath) {
+  return `${previousPath ?? ""}\u0000${path}`;
+}
+
+function parseLineCount(value) {
+  if (value === "-") return 0;
+  if (!/^\d+$/u.test(value)) {
+    throw new Error("Git returned an invalid changed-line count");
+  }
+  const count = Number.parseInt(value, 10);
+  if (!Number.isSafeInteger(count)) {
+    throw new Error("Git returned an unsafe changed-line count");
+  }
+  return count;
+}
+
+function parseNumstat(buffer) {
+  const tokens = nulDelimitedUtf8(buffer, "line counts");
+  const counts = new Map();
+  for (let index = 0; index < tokens.length;) {
+    const fields = tokens[index++].split("\t");
+    if (fields.length !== 3) {
+      throw new Error("Git returned malformed changed-line counts");
+    }
+    const additions = parseLineCount(fields[0]);
+    const deletions = parseLineCount(fields[1]);
+    let previousPath;
+    let path = fields[2];
+    if (path === "") {
+      previousPath = validateGitPath(tokens[index++]);
+      path = validateGitPath(tokens[index++]);
+    } else {
+      path = validateGitPath(path);
+    }
+    const key = changedFileKey(path, previousPath);
+    if (counts.has(key)) {
+      throw new Error("Git returned duplicate changed-line counts");
+    }
+    counts.set(key, Object.freeze({ additions, deletions }));
+  }
+  return counts;
+}
+
+function parseTreeEntries(buffer) {
+  const tokens = nulDelimitedUtf8(buffer, "tree entries");
+  const entries = new Map();
+  for (const token of tokens) {
+    const separator = token.indexOf("\t");
+    if (separator < 0) throw new Error("Git returned a malformed tree entry");
+    const metadata = token.slice(0, separator);
+    const path = validateGitPath(token.slice(separator + 1));
+    const match = metadata.match(
+      /^(\d{6}) ([a-z]+) ([a-f0-9]{40,64})\s+(-|\d+)$/iu,
+    );
+    if (!match) throw new Error(`Git returned invalid tree metadata for ${path}`);
+    const size = match[4] === "-" ? undefined : Number.parseInt(match[4], 10);
+    if (size !== undefined && (!Number.isSafeInteger(size) || size < 0)) {
+      throw new Error(`Git returned an invalid blob size for ${path}`);
+    }
+    entries.set(path, Object.freeze({
+      objectId: validateObjectId(match[3], "tree entry"),
+      size,
+      type: match[2],
+    }));
+  }
+  return entries;
+}
+
+async function readTreeEntries(repositoryPath, revision, paths, options = {}) {
+  const selected = [...new Set(paths.filter(Boolean).map(validateGitPath))];
+  if (selected.length === 0) return new Map();
+  const output = await runGit(
+    repositoryPath,
+    ["ls-tree", "-r", "-z", "-l", validateObjectId(revision), "--", ...selected],
+    { ...options, encoding: null },
+  );
+  return parseTreeEntries(output);
+}
+
+function blobDescriptor(entries, path) {
+  if (!path) return Object.freeze({ state: "absent" });
+  const entry = entries.get(path);
+  if (!entry) return Object.freeze({ state: "absent" });
+  if (entry.type !== "blob") {
+    return Object.freeze({
+      reason: `Git reported a ${entry.type} entry instead of a file blob`,
+      reasonKind: "special-entry",
+      state: "special",
+    });
+  }
+  if (!Number.isSafeInteger(entry.size) || entry.size < 0) {
+    throw new Error(`Git returned an invalid blob size for ${path}`);
+  }
+  if (entry.size > LIMITS.safeBodyBytes) {
+    return Object.freeze({
+      reason: `The file exceeds Hope Commit's ${LIMITS.safeBodyBytes}-byte safe-text limit`,
+      reasonKind: "safe-size-limit",
+      state: "oversized",
+    });
+  }
+  return Object.freeze({
+    objectId: entry.objectId,
+    size: entry.size,
+    state: "pending",
+  });
+}
+
+function parseBlobBatch(output, requested) {
+  if (!Buffer.isBuffer(output)) {
+    throw new TypeError("Hope Commit needs byte-safe Git blob output");
+  }
+  const blobs = new Map();
+  let cursor = 0;
+  for (const expected of requested) {
+    const headerEnd = output.indexOf(10, cursor);
+    if (headerEnd < 0) throw new Error("Git returned a partial blob batch header");
+    const header = output.subarray(cursor, headerEnd).toString("ascii");
+    const match = header.match(/^([a-f0-9]{40,64}) blob (\d+)$/u);
+    if (!match) throw new Error("Git returned invalid blob batch metadata");
+    const objectId = validateObjectId(match[1], "blob");
+    const size = Number.parseInt(match[2], 10);
+    if (objectId !== expected.objectId || size !== expected.size) {
+      throw new Error("Git returned an unexpected blob batch entry");
+    }
+    const bodyStart = headerEnd + 1;
+    const bodyEnd = bodyStart + size;
+    if (bodyEnd >= output.length || output[bodyEnd] !== 10) {
+      throw new Error("Git returned a partial blob batch body");
+    }
+    const bytes = output.subarray(bodyStart, bodyEnd);
+    blobs.set(objectId, isUtf8(bytes)
+      ? Object.freeze({ state: "text", text: cleanText(bytes.toString("utf8")) })
+      : Object.freeze({
+        reason: "The file is not UTF-8 text",
+        reasonKind: "invalid-text",
+        state: "binary",
+      }));
+    cursor = bodyEnd + 1;
+  }
+  if (cursor !== output.length) {
+    throw new Error("Git returned trailing blob batch data");
+  }
+  return blobs;
+}
+
+async function readBlobBatch(repositoryPath, descriptors, options = {}) {
+  const pending = [...new Map(descriptors
+    .filter((item) => item.state === "pending")
+    .map((item) => [item.objectId, item])).values()];
+  const blobs = new Map();
+  for (let start = 0; start < pending.length;) {
+    const requested = [];
+    let requestedBytes = 0;
+    while (start < pending.length) {
+      const candidate = pending[start];
+      if (
+        requested.length > 0
+        && requestedBytes + candidate.size > GIT_BATCH_BODY_BYTES
+      ) break;
+      requested.push(candidate);
+      requestedBytes += candidate.size;
+      start += 1;
+    }
+    const output = await runGit(
+      repositoryPath,
+      ["cat-file", "--batch"],
+      {
+        ...options,
+        encoding: null,
+        input: Buffer.from(`${requested.map((item) => item.objectId).join("\n")}\n`),
+      },
+    );
+    for (const [objectId, value] of parseBlobBatch(output, requested)) {
+      blobs.set(objectId, value);
+    }
+  }
+  return descriptors.map((descriptor) => (
+    descriptor.state === "pending" ? blobs.get(descriptor.objectId) : descriptor
+  ));
 }
 
 async function readBlob(repositoryPath, revision, path, options = {}) {
@@ -222,20 +452,6 @@ async function readBlob(repositoryPath, revision, path, options = {}) {
   return Object.freeze({ state: "text", text: cleanText(bytes.toString("utf8")) });
 }
 
-async function lineCounts(repositoryPath, parent, commit, paths, options = {}) {
-  const output = cleanText(await runGit(
-    repositoryPath,
-    ["diff", "--numstat", "--find-renames", parent, commit, "--", ...paths],
-    options,
-  )).trim();
-  if (!output) return Object.freeze({ additions: 0, deletions: 0 });
-  const [added, deleted] = output.split("\t", 2);
-  return Object.freeze({
-    additions: /^\d+$/u.test(added) ? Number.parseInt(added, 10) : 0,
-    deletions: /^\d+$/u.test(deleted) ? Number.parseInt(deleted, 10) : 0,
-  });
-}
-
 function source(id, kind, text, extra = {}) {
   return Object.freeze({
     id,
@@ -284,12 +500,16 @@ function unavailableReason(kind) {
 export async function collectLocalGitCommit(target, {
   clock = () => new Date(),
   exec,
+  execInput,
   locale,
   localeSource,
   theme,
   themeSource,
 } = {}) {
-  const options = exec ? { exec } : {};
+  const options = {
+    ...(exec ? { exec } : {}),
+    ...(execInput ? { execInput } : {}),
+  };
   const repositoryPath = await resolveRepositoryPath(target.repositoryPath, options);
   const commit = await resolveCommit(repositoryPath, target.commit, options);
   const parentNumber = target.parentNumber ?? 1;
@@ -325,10 +545,43 @@ export async function collectLocalGitCommit(target, {
     throw new Error(`Commit has ${changed.length} files; Hope Commit supports ${LIMITS.changedFiles}`);
   }
 
+  const beforePaths = changed
+    .filter((file) => file.providerStatus !== "added")
+    .map((file) => file.previousPath ?? file.path);
+  const afterPaths = changed
+    .filter((file) => file.providerStatus !== "removed")
+    .map((file) => file.path);
+  const [rawCounts, beforeEntries, afterEntries] = await Promise.all([
+    runGit(
+      repositoryPath,
+      ["diff", "--numstat", "-z", "--find-renames", parent, commit],
+      { ...options, encoding: null },
+    ),
+    readTreeEntries(repositoryPath, parent, beforePaths, options),
+    readTreeEntries(repositoryPath, commit, afterPaths, options),
+  ]);
+  const countsByFile = parseNumstat(rawCounts);
+  const beforeDescriptors = changed.map((file) => (
+    file.providerStatus === "added"
+      ? Object.freeze({ state: "absent" })
+      : blobDescriptor(beforeEntries, file.previousPath ?? file.path)
+  ));
+  const afterDescriptors = changed.map((file) => (
+    file.providerStatus === "removed"
+      ? Object.freeze({ state: "absent" })
+      : blobDescriptor(afterEntries, file.path)
+  ));
+  const blobValues = await readBlobBatch(
+    repositoryPath,
+    beforeDescriptors.flatMap((before, index) => [before, afterDescriptors[index]]),
+    options,
+  );
+  const beforeValues = blobValues.filter((_, index) => index % 2 === 0);
+  const afterValues = blobValues.filter((_, index) => index % 2 === 1);
+
   const sources = [];
-  addSource(sources, "pull-request-title", subject);
-  addSource(sources, "pull-request-description", body);
   addSource(sources, "commit-title", subject, { revision: commit });
+  addSource(sources, "commit-body", body, { revision: commit });
   const limits = [
     {
       id: "limit-1",
@@ -350,21 +603,12 @@ export async function collectLocalGitCommit(target, {
   for (const [index, changedFile] of changed.entries()) {
     const id = `file-${index + 1}`;
     const beforePath = changedFile.previousPath ?? changedFile.path;
-    const [counts, before, after] = await Promise.all([
-      lineCounts(
-        repositoryPath,
-        parent,
-        commit,
-        [changedFile.previousPath, changedFile.path].filter(Boolean),
-        options,
-      ),
-      changedFile.providerStatus === "added"
-        ? { state: "absent" }
-        : readBlob(repositoryPath, parent, beforePath, options),
-      changedFile.providerStatus === "removed"
-        ? { state: "absent" }
-        : readBlob(repositoryPath, commit, changedFile.path, options),
-    ]);
+    const counts = countsByFile.get(changedFileKey(
+      changedFile.path,
+      changedFile.previousPath,
+    )) ?? Object.freeze({ additions: 0, deletions: 0 });
+    const before = beforeValues[index];
+    const after = afterValues[index];
     totalChangedLines += counts.additions + counts.deletions;
     const texts = [before.text, after.text].filter(Boolean);
     const redaction = redactionKind(changedFile.path, texts)
@@ -393,6 +637,8 @@ export async function collectLocalGitCommit(target, {
         [
           "diff",
           "--no-ext-diff",
+          "--no-textconv",
+          "--no-color",
           "--find-renames",
           "--unified=80",
           parent,
@@ -458,14 +704,6 @@ export async function collectLocalGitCommit(target, {
     },
     files,
     limits,
-    // Keep the original Hope analysis contract internally while the renderer migrates to `commit`.
-    pullRequest: {
-      author,
-      number: 0,
-      state: "immutable",
-      title: subject,
-      url: commitUrl,
-    },
     repository: {
       base: { name: repositoryName, owner: repositoryOwner },
       head: { name: repositoryName, owner: repositoryOwner },
