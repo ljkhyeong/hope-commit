@@ -547,6 +547,49 @@ test("Commit Diff 만료 정리가 manifest 일부 삭제 뒤 claimed 경로를 
   });
 });
 
+test("Commit Diff가 손상된 실행 기록과 안전하지 않은 상태 경로를 거부한다", async () => {
+  const temporaryRoot = await createTestTemporaryDirectory(
+    "hope-commit-corrupt-run-",
+  );
+  const { prepared, run } = await createInspectedCommitRun(temporaryRoot);
+  const manifestPath = join(prepared.path, "run.json");
+  const snapshotPath = join(prepared.path, "snapshot.json");
+
+  await writeFile(manifestPath, '{"owner":', "utf8");
+  await assert.rejects(
+    loadDiffRun(prepared.path, { temporaryRoot }),
+    /run manifest is not valid JSON/u,
+  );
+
+  await writeFile(
+    manifestPath,
+    `${JSON.stringify({
+      ...run.manifest,
+      ledgerStateFile: "../checkpoint-state.json",
+    }, null, 2)}\n`,
+    "utf8",
+  );
+  await assert.rejects(
+    loadDiffRun(prepared.path, { temporaryRoot }),
+    /checkpoint state pointer is unsafe/u,
+  );
+
+  await writeFile(
+    manifestPath,
+    `${JSON.stringify(run.manifest, null, 2)}\n`,
+    "utf8",
+  );
+  await writeFile(
+    snapshotPath,
+    `${JSON.stringify({ ...run.snapshot, repository: "변조된 저장소" }, null, 2)}\n`,
+    "utf8",
+  );
+  await assert.rejects(
+    loadDiffRun(prepared.path, { temporaryRoot }),
+    /snapshot digest does not match/u,
+  );
+});
+
 test("Commit Diff가 기존 출력 파일을 바꾸지 않는다", async () => {
   const temporaryRoot = await createTestTemporaryDirectory("hope-commit-output-");
   const commit = await createRepositoryFixture(temporaryRoot);

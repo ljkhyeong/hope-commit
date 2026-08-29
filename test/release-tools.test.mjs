@@ -29,6 +29,7 @@ import {
   releaseTypeBetween,
   validateReleaseImpact,
 } from "../tools/release-impact.mjs";
+import { chooseReleasePlan } from "../tools/plan-release.mjs";
 import {
   replaceVersion,
   withPackageLockVersion,
@@ -366,6 +367,105 @@ test("release file lists compare across platform line endings", () => {
   assert.equal(normalizeLineEndings(windowsCheckout), expected);
 });
 
+test("release planning covers recorded, completed, and interrupted versions", () => {
+  assert.deepEqual(chooseReleasePlan({
+    currentVersion: "4.0.0",
+    eventName: "workflow_run",
+    previousVersion: "3.1.1",
+    releaseExists: false,
+    tagExists: false,
+  }), {
+    currentTag: "v4.0.0",
+    currentVersion: "4.0.0",
+    mode: "recorded",
+    publish: true,
+  });
+  assert.deepEqual(chooseReleasePlan({
+    currentVersion: "4.0.0",
+    eventName: "workflow_run",
+    previousVersion: "4.0.0",
+    releaseExists: true,
+    tagExists: true,
+  }), {
+    currentTag: "v4.0.0",
+    currentVersion: "4.0.0",
+    mode: "none",
+    publish: false,
+  });
+  assert.deepEqual(chooseReleasePlan({
+    currentVersion: "4.0.0",
+    eventName: "workflow_dispatch",
+    releaseExists: false,
+    tagExists: true,
+  }), {
+    currentTag: "v4.0.0",
+    currentVersion: "4.0.0",
+    mode: "resume",
+    publish: true,
+  });
+  assert.deepEqual(chooseReleasePlan({
+    currentVersion: "4.0.0",
+    eventName: "workflow_dispatch",
+    releaseExists: false,
+    tagExists: false,
+  }), {
+    currentTag: "v4.0.0",
+    currentVersion: "4.0.0",
+    mode: "recorded",
+    publish: true,
+  });
+});
+
+test("release planning rejects missing tags and contradictory GitHub state", () => {
+  assert.throws(() => chooseReleasePlan({
+    currentVersion: "4.0.0",
+    eventName: "workflow_run",
+    previousVersion: "4.0.0",
+    releaseExists: false,
+    tagExists: false,
+  }), /태그가 없지만 검증된 커밋은 버전을 변경하지 않았습니다/u);
+  assert.throws(() => chooseReleasePlan({
+    currentVersion: "4.0.0",
+    eventName: "workflow_run",
+    previousVersion: "3.1.1",
+    releaseExists: true,
+    tagExists: false,
+  }), /GitHub Release에 대응하는 Git 태그가 없습니다/u);
+});
+
+test("release planning writes GitHub Actions outputs", async (context) => {
+  const temporaryRoot = await mkdtemp(join(tmpdir(), "hope-release-plan-"));
+  context.after(async () => await rm(temporaryRoot, { recursive: true, force: true }));
+  const outputPath = join(temporaryRoot, "github-output.txt");
+  const result = spawnSync(
+    process.execPath,
+    [join(root, "tools/plan-release.mjs")],
+    {
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        CURRENT_VERSION: "4.0.0",
+        EVENT_NAME: "workflow_run",
+        GITHUB_OUTPUT: outputPath,
+        PREVIOUS_VERSION: "3.1.1",
+        RELEASE_EXISTS: "false",
+        TAG_EXISTS: "false",
+      },
+    },
+  );
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(
+    await readFile(outputPath, "utf8"),
+    [
+      "current-version=4.0.0",
+      "current-tag=v4.0.0",
+      "mode=recorded",
+      "publish=true",
+      "",
+    ].join("\n"),
+  );
+});
+
 test("CI keeps release decisions local and publishes a checked package", async () => {
   const verify = await readFile(join(root, ".github/workflows/verify.yml"), "utf8");
   const changeTitle = await readFile(
@@ -414,6 +514,8 @@ test("CI keeps release decisions local and publishes a checked package", async (
   assert.match(release, /test "\$\{EVENT_REF\}" = "refs\/heads\/main"/u);
   assert.match(release, /test "\$\(git rev-parse HEAD\)" = "\$\{EVENT_SHA\}"/u);
   assert.match(release, /PREVIOUS_VERSION=.*EVENT_SHA\}\^:package\.json/u);
+  assert.match(release, /node tools\/plan-release\.mjs/u);
+  assert.doesNotMatch(release, /echo "mode=\$\{MODE\}"/u);
   assert.doesNotMatch(release, /npm ci|release:prepare|test:browser|playwright install/u);
   assert.match(release, /git tag "\$\{\{ steps\.plan\.outputs\.current-tag \}\}"/u);
   assert.doesNotMatch(release, /git tag -a/u);
