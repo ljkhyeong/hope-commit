@@ -399,14 +399,21 @@ test("CI keeps release decisions local and publishes a checked package", async (
     assert.match(workflow, /actions\/setup-node@[0-9a-f]{40}\s+#\s+v7\.\d+\.\d+/u);
   }
   assert.doesNotMatch(verify, /tools\/release-impact\.mjs|BASE_REF/u);
-  assert.match(release, /push:\s+branches:\s+- main\s+paths:\s+- package\.json/su);
+  assert.match(release, /workflow_run:\s+workflows:\s+- Verify\s+types:\s+- completed/su);
   assert.match(release, /workflow_dispatch/u);
-  assert.doesNotMatch(release, /workflow_run/u);
+  assert.doesNotMatch(release, /^\s+push:/mu);
+  assert.match(release, /workflow_run\.conclusion == 'success'/u);
+  assert.match(release, /workflow_run\.event == 'push'/u);
+  assert.match(release, /workflow_run\.head_branch == 'main'/u);
+  assert.match(
+    release,
+    /workflow_run\.head_repository\.full_name == github\.repository/u,
+  );
   assert.match(release, /queue: max/u);
-  assert.match(release, /ref: \$\{\{ github\.sha \}\}/u);
+  assert.match(release, /ref: \$\{\{ github\.event_name == 'workflow_run' && github\.event\.workflow_run\.head_sha \|\| github\.sha \}\}/u);
   assert.match(release, /test "\$\{EVENT_REF\}" = "refs\/heads\/main"/u);
   assert.match(release, /test "\$\(git rev-parse HEAD\)" = "\$\{EVENT_SHA\}"/u);
-  assert.match(release, /PREVIOUS_VERSION=.*BEFORE_SHA/u);
+  assert.match(release, /PREVIOUS_VERSION=.*EVENT_SHA\}\^:package\.json/u);
   assert.doesNotMatch(release, /npm ci|release:prepare|test:browser|playwright install/u);
   assert.match(release, /git tag "\$\{\{ steps\.plan\.outputs\.current-tag \}\}"/u);
   assert.doesNotMatch(release, /git tag -a/u);

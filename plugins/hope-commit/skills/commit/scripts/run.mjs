@@ -26,8 +26,8 @@ import {
   createDiffCheckpoint,
   validateDiffLedger,
 } from "./checkpoint.mjs";
-import { splitEvidenceRange } from "./evidence-range.mjs";
-import { digestJson } from "./hash.mjs";
+import { splitEvidenceRange } from "../../../review-core/evidence-range.mjs";
+import { digestJson } from "../../../review-core/hash.mjs";
 
 const RUN_OWNER = "hope-commit-run";
 const RUN_TTL_MS = 24 * 60 * 60 * 1000;
@@ -35,6 +35,9 @@ const RUN_LOCK = ".change.lock";
 const RUN_DIRECTORY_PATTERN = /^run-([a-f0-9]{32})$/u;
 const CLAIMED_RUN_DIRECTORY_PATTERN =
   /^\.remove-run-([a-f0-9]{32})-[a-f0-9]{32}$/u;
+const REMOVAL_RECORD_PATTERN =
+  /^\.remove-run-([a-f0-9]{32})-([a-f0-9]{32})\.json$/u;
+const REMOVAL_RECORD_VERSION = 1;
 function validRunContractVersions(manifest) {
   return (
     manifest.runVersion === RUN_VERSION
@@ -87,6 +90,22 @@ function sameDirectoryIdentity(value, expected) {
     && value.mode === expected.mode;
 }
 
+function sameFileIdentity(value, expected) {
+  return value.isFile()
+    && !value.isSymbolicLink()
+    && value.dev === expected.dev
+    && value.ino === expected.ino
+    && value.mode === expected.mode;
+}
+
+function directoryIdentity(directory) {
+  return Object.freeze({
+    dev: directory.dev,
+    ino: directory.ino,
+    mode: directory.mode,
+  });
+}
+
 function replacedRunError(preservedPath) {
   const error = new Error(
     `Hope preserved a replaced run directory at ${preservedPath}`,
@@ -111,6 +130,80 @@ function runIdFromDirectoryName(name) {
     ?? name.match(CLAIMED_RUN_DIRECTORY_PATTERN)?.[1];
 }
 
+function removalRecordFromName(name) {
+  const match = name.match(REMOVAL_RECORD_PATTERN);
+  if (!match) return undefined;
+  return Object.freeze({
+    claimedName: name.slice(0, -".json".length),
+    runId: match[1],
+  });
+}
+
+function validRemovalRecord(value, expected) {
+  return value !== null
+    && typeof value === "object"
+    && !Array.isArray(value)
+    && Object.keys(value).sort().join(",")
+      === ["claimedName", "directory", "owner", "runId", "version"].join(",")
+    && value.version === REMOVAL_RECORD_VERSION
+    && value.owner === RUN_OWNER
+    && value.runId === expected.runId
+    && value.claimedName === expected.claimedName
+    && value.directory !== null
+    && typeof value.directory === "object"
+    && !Array.isArray(value.directory)
+    && Object.keys(value.directory).sort().join(",") === "dev,ino,mode"
+    && Number.isSafeInteger(value.directory.dev)
+    && value.directory.dev >= 0
+    && Number.isSafeInteger(value.directory.ino)
+    && value.directory.ino >= 0
+    && Number.isSafeInteger(value.directory.mode)
+    && value.directory.mode >= 0;
+}
+
+async function unlinkOwnedRemovalRecord(path, expected) {
+  const current = await lstat(path);
+  if (!sameFileIdentity(current, expected)) {
+    throw replacedRunError(path);
+  }
+  await unlink(path);
+}
+
+async function finishRemovalRecord(path, expected) {
+  try {
+    await unlinkOwnedRemovalRecord(path, expected);
+  } catch (error) {
+    if (typeof error?.preservedPath === "string") throw error;
+    throw preservedRemovalError(error, path);
+  }
+}
+
+async function removeClaimedRunDirectory(path, expected, recordPath, recordFile, {
+  onRemoveReady = async () => {},
+  removeDirectory = rm,
+} = {}) {
+  await onRemoveReady({ directory: expected, path });
+  const current = await lstat(path);
+  if (!sameDirectoryIdentity(current, expected)) {
+    throw replacedRunError(path);
+  }
+  try {
+    await removeDirectory(path, { recursive: true });
+  } catch (error) {
+    let preserved;
+    try {
+      preserved = await lstat(path);
+    } catch {
+      // 소유한 경로가 남지 않았다면 원래 삭제 오류를 그대로 전달합니다.
+    }
+    if (preserved && sameDirectoryIdentity(preserved, expected)) {
+      throw preservedRemovalError(error, path);
+    }
+    throw error;
+  }
+  await finishRemovalRecord(recordPath, recordFile);
+}
+
 async function removeOwnedRunDirectory(path, expected, {
   onRemoveReady = async () => {},
   removeDirectory = rm,
@@ -129,25 +222,32 @@ async function removeOwnedRunDirectory(path, expected, {
     dirname(path),
     `.remove-run-${runId}-${randomBytes(16).toString("hex")}`,
   );
-  await renameDirectory(path, claimedPath);
+  const recordPath = `${claimedPath}.json`;
+  await writeNewJson(recordPath, {
+    claimedName: basename(claimedPath),
+    directory: directoryIdentity(expected),
+    owner: RUN_OWNER,
+    runId,
+    version: REMOVAL_RECORD_VERSION,
+  });
+  const recordFile = await lstat(recordPath);
+  try {
+    await renameDirectory(path, claimedPath);
+  } catch (error) {
+    await unlinkOwnedRemovalRecord(recordPath, recordFile).catch(() => {});
+    throw error;
+  }
   const claimed = await lstat(claimedPath);
   if (!sameDirectoryIdentity(claimed, expected)) {
     throw replacedRunError(claimedPath);
   }
-  try {
-    await removeDirectory(claimedPath, { recursive: true });
-  } catch (error) {
-    let preserved;
-    try {
-      preserved = await lstat(claimedPath);
-    } catch {
-      // 소유한 경로가 남지 않았다면 원래 삭제 오류를 그대로 전달합니다.
-    }
-    if (preserved && sameDirectoryIdentity(preserved, expected)) {
-      throw preservedRemovalError(error, claimedPath);
-    }
-    throw error;
-  }
+  await removeClaimedRunDirectory(
+    claimedPath,
+    claimed,
+    recordPath,
+    recordFile,
+    { removeDirectory },
+  );
 }
 
 async function privateRunRoot({ temporaryRoot = tmpdir() } = {}) {
@@ -409,7 +509,6 @@ export function buildInspectionPages(snapshot, {
         commit: snapshot.commit,
         fileCount: snapshot.files.length,
         limitCount: snapshot.limits.length,
-        pullRequest: snapshot.pullRequest,
         repository: snapshot.repository,
         settings: snapshot.settings,
         snapshot: snapshot.snapshot,
@@ -926,7 +1025,50 @@ export async function cleanupExpiredRuns({
   const removedPaths = [];
   const preservedPaths = [];
   const now = clock().getTime();
-  for (const entry of await readdir(root, { withFileTypes: true })) {
+  const entries = await readdir(root, { withFileTypes: true });
+  const recordedClaimedNames = new Set(entries.flatMap((entry) => {
+    const expected = removalRecordFromName(entry.name);
+    return expected === undefined ? [] : [expected.claimedName];
+  }));
+  for (const entry of entries) {
+    const expected = removalRecordFromName(entry.name);
+    if (!entry.isFile() || expected === undefined) continue;
+    const recordPath = join(root, entry.name);
+    try {
+      const recordFile = await lstat(recordPath);
+      if (!recordFile.isFile() || recordFile.isSymbolicLink()) continue;
+      const record = await readRunJson(recordPath, "removal record", {
+        maximumBytes: LIMITS.manifestBytes,
+      });
+      if (!validRemovalRecord(record, expected)) continue;
+      const path = join(root, record.claimedName);
+      let directory;
+      try {
+        directory = await lstat(path);
+      } catch (error) {
+        if (error?.code !== "ENOENT") throw error;
+        await finishRemovalRecord(recordPath, recordFile);
+        continue;
+      }
+      if (!sameDirectoryIdentity(directory, record.directory)) continue;
+      await onCleanupClaimed({ manifest: record, path });
+      await removeClaimedRunDirectory(
+        path,
+        directory,
+        recordPath,
+        recordFile,
+        { onRemoveReady, removeDirectory },
+      );
+      removedPaths.push(path);
+    } catch (error) {
+      if (typeof error?.preservedPath === "string") {
+        preservedPaths.push(error.preservedPath);
+      }
+      // Unknown state is left in place.
+    }
+  }
+  for (const entry of entries) {
+    if (recordedClaimedNames.has(entry.name)) continue;
     const runId = runIdFromDirectoryName(entry.name);
     if (!entry.isDirectory() || runId === undefined) continue;
     const path = join(root, entry.name);

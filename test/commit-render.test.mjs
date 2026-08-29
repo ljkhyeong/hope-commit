@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { digestJson } from "../plugins/hope-commit/skills/commit/scripts/hash.mjs";
+import { digestJson } from "../plugins/hope-commit/review-core/hash.mjs";
 import { renderReview } from "../plugins/hope-commit/skills/commit/scripts/render.mjs";
 import { validateAnalysis } from "../plugins/hope-commit/skills/commit/scripts/validate.mjs";
 import {
@@ -15,8 +15,10 @@ function makeCommitSnapshot() {
   const { digest: _digest, ...base } = makeSnapshot();
   const commitId = base.snapshot.head;
   const parentId = base.snapshot.base;
+  const subject = base.pullRequest.title;
+  const { pullRequest: _pullRequest, ...commitBase } = base;
   const value = {
-    ...base,
+    ...commitBase,
     commit: {
       author: "octocat",
       authoredAt: "2026-07-23T00:00:00.000Z",
@@ -25,13 +27,7 @@ function makeCommitSnapshot() {
       parent: parentId,
       parentCount: 1,
       parentNumber: 1,
-      subject: base.pullRequest.title,
-      url: `https://github.com/example/hope/commit/${commitId}`,
-    },
-    pullRequest: {
-      ...base.pullRequest,
-      number: 0,
-      state: "immutable",
+      subject,
       url: `https://github.com/example/hope/commit/${commitId}`,
     },
     repository: {
@@ -44,6 +40,17 @@ function makeCommitSnapshot() {
       ...base.snapshot,
       mergeBase: parentId,
     },
+    sources: base.sources.map((source) => Object.freeze({
+      ...source,
+      kind: source.kind === "pull-request-title"
+        ? "commit-title"
+        : source.kind === "pull-request-description"
+          ? "commit-body"
+          : source.kind,
+      revision: source.kind.startsWith("pull-request-")
+        ? commitId
+        : source.revision,
+    })),
   };
   return Object.freeze({ ...value, digest: digestJson(value) });
 }

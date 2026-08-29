@@ -95,6 +95,7 @@ plugins/hope-commit/
 ├── .codex-plugin/plugin.json
 ├── .claude-plugin/plugin.json
 ├── assets/
+├── review-core/         Proven pure invariants shared by Diff and Commit Diff
 └── skills/
     ├── align/
     │   ├── SKILL.md
@@ -134,8 +135,13 @@ Keep private assets beside their only feature consumer.
 
 Do not generate Skill instructions or keep a repository mirror of them.
 
-Shared code needs two real consumers with the same invariant. Align, Diff, and
-Commit Diff currently own their visual tokens, rendering, and publication
+Shared code needs two real consumers with the same invariant. `review-core/`
+contains only the canonical JSON hash, evidence-range splitting, text and
+redaction safety, review-result derivation, and bounded structured-input reader
+used by both Diff and Commit Diff. It does not own collection, workflow, state,
+rendering, or publication.
+
+Align, Diff, and Commit Diff own their visual tokens, rendering, and publication
 behavior independently. Commit Diff started from Diff's bounded review design,
 but does not import Diff at runtime.
 
@@ -150,6 +156,8 @@ rewriting its behavior.
 Align, Diff, and Commit Diff currently need deterministic code.
 
 Their scripts live beside their owning Skills and do not form a shared runtime.
+Diff and Commit Diff import the small `review-core/` modules only for the exact
+invariants listed above.
 
 Each Skill and its references own workflow and model judgment.
 
@@ -173,6 +181,9 @@ Both host manifests point at the same `skills/` directory.
 
 Skill instructions, references, scripts, schemas, locales, and private assets
 ship directly from their editable paths.
+
+The bounded `review-core/` modules also ship from their editable paths because
+Diff and Commit Diff import them directly.
 
 Hope-wide brand fonts and the product icon live under `plugins/hope-commit/assets/`
 because Align, Diff, and Commit Diff embed the same fixed files. Each feature

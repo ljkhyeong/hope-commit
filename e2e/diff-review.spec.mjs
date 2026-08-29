@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { digestJson } from "../plugins/hope-commit/skills/diff/scripts/hash.mjs";
+import { digestJson } from "../plugins/hope-commit/review-core/hash.mjs";
 import { renderReview } from "../plugins/hope-commit/skills/diff/scripts/render.mjs";
 import { validateAnalysis } from "../plugins/hope-commit/skills/diff/scripts/validate.mjs";
 import {

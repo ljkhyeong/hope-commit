@@ -5,6 +5,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const reviewCoreRoot = resolve(root, "plugins/hope-commit/review-core");
 const skillsRoot = resolve(root, "plugins/hope-commit/skills");
 const deterministicSkills = Object.freeze(["align", "commit", "diff"]);
 const instructionLedSkills = Object.freeze([
@@ -66,7 +67,7 @@ test("each feature has one editable Skill boundary", async () => {
   }
 });
 
-test("feature scripts depend only on their owning Skill", async () => {
+test("feature scripts depend only on their owning Skill and the bounded review core", async () => {
   for (const skillName of deterministicSkills) {
     const featureRoot = resolve(skillsRoot, skillName);
     const pending = [resolve(featureRoot, "scripts")];
@@ -95,10 +96,17 @@ test("feature scripts depend only on their owning Skill", async () => {
         const insideFeature = !isAbsolute(fromFeature)
           && fromFeature !== ".."
           && !fromFeature.startsWith(`..${sep}`);
+        const fromReviewCore = relative(reviewCoreRoot, dependency);
+        const insideReviewCore = !isAbsolute(fromReviewCore)
+          && fromReviewCore !== ".."
+          && !fromReviewCore.startsWith(`..${sep}`);
         assert.equal(
-          insideFeature,
+          insideFeature || (
+            ["commit", "diff"].includes(skillName)
+            && insideReviewCore
+          ),
           true,
-          `${relative(root, path)} imports outside its Skill: ${match[1]}`,
+          `${relative(root, path)} imports outside its approved boundary: ${match[1]}`,
         );
       }
     }
@@ -115,6 +123,40 @@ test("feature scripts depend only on their owning Skill", async () => {
   assert.doesNotMatch(alignRender, /skills\/diff|shared\/visual/u);
   assert.doesNotMatch(commitDiffRender, /skills\/(?:align|diff)|shared\/visual/u);
   assert.doesNotMatch(diffRender, /skills\/align|shared\/visual/u);
+});
+
+test("the review core contains only approved shared invariants", async () => {
+  const entries = await readdir(reviewCoreRoot, { withFileTypes: true });
+  assert.deepEqual(
+    entries.map((entry) => entry.name).sort(),
+    [
+      "derive.mjs",
+      "evidence-range.mjs",
+      "hash.mjs",
+      "redact.mjs",
+      "structured-input.mjs",
+      "text.mjs",
+    ],
+  );
+  for (const entry of entries) {
+    assert.equal(entry.isFile(), true);
+    const path = resolve(reviewCoreRoot, entry.name);
+    const source = await readFile(path, "utf8");
+    assert.doesNotMatch(source, /skills\/|runtime|renderer|publication/u);
+    for (const match of source.matchAll(
+      /(?:from\s+|import\()\s*["'](\.\.?\/[^"']+)["']/gu,
+    )) {
+      const dependency = resolve(dirname(path), match[1]);
+      const fromReviewCore = relative(reviewCoreRoot, dependency);
+      assert.equal(
+        !isAbsolute(fromReviewCore)
+          && fromReviewCore !== ".."
+          && !fromReviewCore.startsWith(`..${sep}`),
+        true,
+        `${relative(root, path)} imports outside the review core`,
+      );
+    }
+  }
 });
 
 test("instruction-led feature guidance stays delivery-neutral", async () => {

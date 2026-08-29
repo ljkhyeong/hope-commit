@@ -2,7 +2,7 @@ import { unlink } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 import { resolveDisplayOptions } from "./locales/index.mjs";
-import { readBoundedJson } from "./structured-input.mjs";
+import { readBoundedJson } from "../../../review-core/structured-input.mjs";
 import {
   ANALYSIS_VERSION,
   LIMITS,
@@ -18,7 +18,7 @@ import {
   collectLocalGitCommit,
   revalidateLocalGitSnapshot,
 } from "./git.mjs";
-import { digestJson } from "./hash.mjs";
+import { digestJson } from "../../../review-core/hash.mjs";
 import {
   appendDiffRunPlan,
   cancelDiffRun,
@@ -311,6 +311,7 @@ export async function prepareDiff({
   const snapshot = await (dependencies.collect ?? collectLocalGitCommit)(target, {
     clock: dependencies.clock,
     exec: dependencies.git,
+    execInput: dependencies.gitInput,
     locale: display.locale,
     localeSource: display.localeSource,
     theme: display.theme,

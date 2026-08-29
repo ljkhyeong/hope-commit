@@ -2,7 +2,7 @@ import { unlink } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 import { resolveDisplayOptions } from "./locales/index.mjs";
-import { readBoundedJson } from "./structured-input.mjs";
+import { readBoundedJson } from "../../../review-core/structured-input.mjs";
 import {
   ANALYSIS_VERSION,
   LIMITS,
@@ -20,7 +20,7 @@ import {
   parseGitHubPullRequestUrl,
   revalidateGitHubSnapshot,
 } from "./github.mjs";
-import { digestJson } from "./hash.mjs";
+import { digestJson } from "../../../review-core/hash.mjs";
 import {
   appendDiffRunPlan,
   cancelDiffRun,

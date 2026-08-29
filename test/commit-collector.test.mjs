@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFile as execFileCallback, execFileSync } from "node:child_process";
 import { access, chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
+import { promisify } from "node:util";
 
 import {
   collectLocalGitCommit,
@@ -13,6 +14,29 @@ import {
   parseCommitTargetArgument,
   resolveLocalCommitTarget,
 } from "../plugins/hope-commit/skills/commit/scripts/target.mjs";
+
+const execFile = promisify(execFileCallback);
+
+function execFileWithInput(command, arguments_, options, input) {
+  return new Promise((resolvePromise, rejectPromise) => {
+    const child = execFileCallback(
+      command,
+      arguments_,
+      options,
+      (error, stdout, stderr) => {
+        if (error) {
+          error.stdout = stdout;
+          error.stderr = stderr;
+          rejectPromise(error);
+          return;
+        }
+        resolvePromise({ stderr, stdout });
+      },
+    );
+    child.stdin.on("error", () => {});
+    child.stdin.end(input);
+  });
+}
 
 function git(repository, ...arguments_) {
   return execFileSync("git", ["-C", repository, ...arguments_], {
@@ -61,6 +85,11 @@ test("resolves a short commit ID and captures immutable commit blobs", async (t)
 
   assert.equal(snapshot.commit.id, fixture.head);
   assert.equal(snapshot.commit.parent, fixture.root);
+  assert.equal(Object.hasOwn(snapshot, "pullRequest"), false);
+  assert.deepEqual(
+    snapshot.sources.filter((source) => !source.fileId).map((source) => source.kind),
+    ["commit-title", "commit-body"],
+  );
   assert.equal(snapshot.files.length, 1);
   assert.equal(snapshot.files[0].path, "example.txt");
   const patch = snapshot.sources.find((source) => source.kind === "patch")?.text;
@@ -221,6 +250,51 @@ test("collects an uncolored patch without running text conversion", async (t) =>
   await assert.rejects(access(marker), (error) => error?.code === "ENOENT");
   assert.match(patch, /\+plain patch/u);
   assert.doesNotMatch(patch, /\u001b|\uFFFD/u);
+});
+
+test("batches changed-line and blob reads across many files", async (t) => {
+  const fixture = await repositoryFixture();
+  t.after(async () => rm(fixture.repository, { force: true, recursive: true }));
+  const addedPaths = Array.from(
+    { length: 32 },
+    (_, index) => `batch-${String(index + 1).padStart(2, "0")}.txt`,
+  );
+  await Promise.all(addedPaths.map((path, index) => writeFile(
+    join(fixture.repository, path),
+    `일괄 수집 ${index + 1}\n`,
+    "utf8",
+  )));
+  git(fixture.repository, "add", "--", ...addedPaths);
+  git(fixture.repository, "commit", "-m", "Add batch fixtures");
+
+  const commands = [];
+  const record = (arguments_) => commands.push(arguments_);
+  const snapshot = await collectLocalGitCommit({
+    commit: git(fixture.repository, "rev-parse", "HEAD"),
+    repositoryPath: fixture.repository,
+  }, {
+    exec: async (command, arguments_, options) => {
+      record(arguments_);
+      return execFile(command, arguments_, options);
+    },
+    execInput: async (command, arguments_, options, input) => {
+      record(arguments_);
+      return execFileWithInput(command, arguments_, options, input);
+    },
+    locale: "ko-KR",
+    localeSource: "explicit",
+    theme: "system",
+    themeSource: "default",
+  });
+
+  assert.equal(snapshot.files.length, addedPaths.length);
+  assert.equal(commands.filter((arguments_) => arguments_.includes("--numstat")).length, 1);
+  assert.equal(commands.filter((arguments_) => arguments_.includes("--batch")).length, 1);
+  assert.equal(commands.filter((arguments_) => (
+    arguments_.includes("cat-file")
+    && (arguments_.includes("-t") || arguments_.includes("-s"))
+  )).length, 0);
+  assert.ok(commands.length <= addedPaths.length + 15, `${commands.length} Git commands`);
 });
 
 test("rejects non-UTF-8 Git paths before decoding them", async (t) => {

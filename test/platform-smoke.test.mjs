@@ -9,7 +9,7 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { pluginPackageFiles } from "../tools/plugin-files.mjs";
 import { stagePlugin } from "../tools/stage-plugin.mjs";
@@ -38,6 +38,31 @@ test("the staged plugin runs from an external platform path", async (context) =>
 
   const outsideRepository = join(temporaryRoot, "outside repository");
   await mkdir(outsideRepository);
+
+  for (const feature of ["diff", "commit"]) {
+    const runModule = await import(pathToFileURL(join(
+      destination,
+      "skills",
+      feature,
+      "scripts",
+      "run.mjs",
+    )).href);
+    const target = join(outsideRepository, `${feature}-new.json`);
+    await runModule.writeNewJson(target, { feature, state: "처음 기록" });
+    assert.deepEqual(JSON.parse(await readFile(target, "utf8")), {
+      feature,
+      state: "처음 기록",
+    });
+    await assert.rejects(
+      runModule.writeNewJson(target, { feature, state: "덮어쓰기" }),
+      (error) => error?.code === "EEXIST",
+    );
+    assert.deepEqual(JSON.parse(await readFile(target, "utf8")), {
+      feature,
+      state: "처음 기록",
+    });
+  }
+
   const alignHelp = spawnSync(
     process.execPath,
     [join(destination, "skills", "align", "scripts", "cli.mjs"), "--help"],

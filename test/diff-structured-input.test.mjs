@@ -5,7 +5,7 @@ import test, { after } from "node:test";
 
 import {
   readBoundedJson,
-} from "../plugins/hope-commit/skills/diff/scripts/structured-input.mjs";
+} from "../plugins/hope-commit/review-core/structured-input.mjs";
 import {
   registerTestTemporaryDirectoryCleanup,
 } from "../test-support/temporary-directory.mjs";

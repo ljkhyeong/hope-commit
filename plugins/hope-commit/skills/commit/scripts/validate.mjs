@@ -7,21 +7,20 @@ import {
   LIMITS,
   REVIEW_KINDS,
 } from "./constants.mjs";
-import { splitEvidenceRange } from "./evidence-range.mjs";
-import { deriveReviewResult, sortReviewItems } from "./derive.mjs";
+import { splitEvidenceRange } from "../../../review-core/evidence-range.mjs";
+import { deriveReviewResult, sortReviewItems } from "../../../review-core/derive.mjs";
 import {
   microworldSelections,
   normalizeMicroworldControls,
   TEACHING_AID_DECISIONS,
   TEACHING_AID_NAMES,
 } from "./teaching-aids.mjs";
-import { containsBidiControl } from "./text.mjs";
+import { containsBidiControl } from "../../../review-core/text.mjs";
 
 const changeSources = new Set(["patch", "before-file", "after-file"]);
 const codeSources = new Set([...changeSources, "context-file"]);
 const statedSources = new Set([
-  "pull-request-title",
-  "pull-request-description",
+  "commit-body",
   "commit-title",
 ]);
 const contextStatuses = ["checked", "not-applicable", "limited"];
@@ -100,7 +99,7 @@ function validateReviewTitle(value, snapshot, sourceMap) {
   }
   if (
     comparableTitle(validated.text)
-    === comparableTitle(snapshot.pullRequest.title)
+    === comparableTitle(snapshot.commit.subject)
   ) {
     throw new Error("title must explain the change instead of copying the commit subject");
   }
@@ -1226,7 +1225,6 @@ function validateAnalysisValue(analysis, snapshot, {
       capturedAt: snapshot.capturedAt,
       commit: snapshot.commit,
       digest: snapshot.digest,
-      pullRequest: snapshot.pullRequest,
       repository: snapshot.repository,
       settings: snapshot.settings,
       snapshot: snapshot.snapshot,

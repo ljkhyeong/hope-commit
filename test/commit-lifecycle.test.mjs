@@ -4,6 +4,7 @@ import {
   access,
   open,
   readFile,
+  rm,
   unlink,
   writeFile,
 } from "node:fs/promises";
@@ -12,7 +13,7 @@ import test, { after } from "node:test";
 
 import { main as runCommitCommand } from "../plugins/hope-commit/skills/commit/scripts/cli.mjs";
 import { finishDiff } from "../plugins/hope-commit/skills/commit/scripts/index.mjs";
-import { digestJson } from "../plugins/hope-commit/skills/commit/scripts/hash.mjs";
+import { digestJson } from "../plugins/hope-commit/review-core/hash.mjs";
 import {
   appendDiffRunPlan,
   cleanupExpiredRuns,
@@ -105,7 +106,7 @@ function omittedTeachingAid(reason) {
 
 function makeLifecycleAnalysis(run) {
   const purposeSource = run.snapshot.sources.find(
-    (source) => source.kind === "pull-request-description",
+    (source) => source.kind === "commit-body",
   );
   const patchSource = run.snapshot.sources.find((source) => source.kind === "patch");
   assert.ok(purposeSource);
@@ -508,7 +509,7 @@ test("Commit Diff finish가 같은 runId의 교체된 디렉터리를 거부한�
   await removeDiffRun(prepared.path, { temporaryRoot });
 });
 
-test("Commit Diff 만료 정리가 삭제 실패 뒤 실제 claimed 경로를 다시 정리한다", async () => {
+test("Commit Diff 만료 정리가 manifest 일부 삭제 뒤 claimed 경로를 다시 정리한다", async () => {
   const temporaryRoot = await createTestTemporaryDirectory(
     "hope-commit-expiry-resume-",
   );
@@ -526,7 +527,8 @@ test("Commit Diff 만료 정리가 삭제 실패 뒤 실제 claimed 경로를 �
     clock: () => old,
   });
   const failed = await cleanupExpiredRuns({
-    removeDirectory: async () => {
+    removeDirectory: async (path) => {
+      await rm(join(path, "run.json"));
       throw new Error("삭제 중단");
     },
     temporaryRoot,

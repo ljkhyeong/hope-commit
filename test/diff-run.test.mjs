@@ -6,6 +6,7 @@ import {
   readFile,
   readdir,
   rename,
+  rm,
   symlink,
   unlink,
   writeFile,
@@ -28,7 +29,7 @@ import {
   prepareDiff,
   validateDiff,
 } from "../plugins/hope-commit/skills/diff/scripts/index.mjs";
-import { digestJson } from "../plugins/hope-commit/skills/diff/scripts/hash.mjs";
+import { digestJson } from "../plugins/hope-commit/review-core/hash.mjs";
 import {
   appendDiffRunPlan,
   buildInspectionPages,
@@ -640,7 +641,7 @@ test("expiry cleanup preserves a directory replaced during removal", async () =>
   assert.equal(await readFile(join(created.path, "foreign.txt"), "utf8"), "keep\n");
 });
 
-test("expiry cleanup resumes the exact claimed path after removal fails", async () => {
+test("expiry cleanup resumes a claimed path after its manifest was partly removed", async () => {
   const temporaryRoot = await createTestTemporaryDirectory("hope-run-expiry-resume-");
   const old = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
   const created = await createDiffRun(makeSnapshot(), {
@@ -648,7 +649,8 @@ test("expiry cleanup resumes the exact claimed path after removal fails", async 
     temporaryRoot,
   });
   const failed = await cleanupExpiredRuns({
-    removeDirectory: async () => {
+    removeDirectory: async (path) => {
+      await rm(join(path, "run.json"));
       const error = new Error("삭제 중단");
       error.code = "EIO";
       throw Object.freeze(error);

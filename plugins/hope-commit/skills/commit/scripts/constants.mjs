@@ -45,7 +45,6 @@ export const LIMITS = Object.freeze({
   manifestBytes: 128 * 1024,
   modelBytes: 128 * 1024,
   modelString: 32 * 1024,
-  pullRequestBodyBytes: 32 * 1024,
   reviewTitleCharacters: 80,
   reviewItems: 80,
   safeBodyBytes: 256 * 1024,

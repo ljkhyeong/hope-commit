@@ -90,11 +90,14 @@ decision before review and merge.
 
 ## Publish the recorded version
 
-A push to `main` that changes `package.json` starts the `Release` workflow.
+Every push to `main` runs `Verify`. After all supported Node.js versions,
+platform smoke checks, and browser checks pass, that completed run starts the
+`Release` workflow.
 
-The workflow checks out that event's exact commit.
+Release accepts only a successful `Verify` run for a `main` push from this
+repository. It checks out the exact commit verified by that run.
 
-If the push did not change the recorded version, the workflow exits without
+If that commit did not change the recorded version, the workflow exits without
 publishing.
 
 For a new version, it checks the recorded package, stages and verifies the

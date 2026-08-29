@@ -27,6 +27,10 @@ do not need to read it.
   analysis file to the digest.
 - Store private runs in a user-owned temporary directory with restricted
   permissions.
+- Record a claimed run's original directory identity outside that directory so
+  interrupted deletion can resume after an internal manifest was removed.
+- Preserve a claimed path or removal record when its final identity is
+  uncertain.
 - Revalidate the captured Git objects before publication.
 - Publish the artifact atomically only after analysis validation succeeds.
 
