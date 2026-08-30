@@ -101,10 +101,14 @@ force pushes, and prevents deleting `main`.
 Release accepts only a successful `Verify` run for a `main` push from this
 repository. It checks out the exact commit verified by that run.
 
-If that commit did not change the recorded version, the workflow exits without
-publishing when the matching tag and GitHub Release already exist. If the
-current version has no tag and the verified commit did not change that version,
-the workflow fails instead of hiding a missed or interrupted release.
+검증된 커밋이 버전을 변경하지 않았고 해당 태그와 공개된 GitHub Release가
+모두 있으면 새로 게시하지 않고 종료합니다. 현재 버전에 태그가 없는데
+검증된 커밋이 버전도 변경하지 않았다면 누락되거나 중단된 릴리스를 확인할 수
+있도록 실패로 종료합니다.
+
+릴리스 초안은 게시 완료로 보지 않습니다. 자동·수동 실행 모두 초안이 있으면
+오류를 내고 중단하며, 초안을 삭제하거나 공개하지 않습니다. GitHub 상태 조회가
+실패해도 릴리스가 없는 것으로 처리하지 않고 중단합니다.
 
 For a new version, it checks the recorded package, stages and verifies the
 archive, and then creates the tag and GitHub Release.
@@ -121,12 +125,17 @@ requests since the previous tag.
 
 A manual run uses the selected `main` commit, not a moving branch reference.
 
-If its tag and GitHub Release both exist, the run exits without publishing.
+태그와 공개된 GitHub Release가 모두 있으면 새로 게시하지 않고 종료합니다.
 
 If neither exists, the run checks and publishes that recorded version.
 
 If the tag exists without a GitHub Release, the run restores the tagged commit,
 checks its package again, and publishes the missing release.
+
+초안 때문에 중단됐다면 먼저 이전 실행 로그, 초안의 릴리스 노트와 첨부 파일을
+확인합니다. 필요한 내용을 별도로 보관하고, 다시 만들기로 결정한 초안만 직접
+삭제합니다. 기존 Git 태그는 삭제하거나 옮기지 않습니다. 그 뒤 `main`에서
+수동 릴리스를 실행하면 위 절차에 따라 검증된 패키지로 릴리스를 다시 만듭니다.
 
 GitHub locks the tag and assets after an immutable Release is published. This
 setting applies only to Releases published after it is enabled. `v4.0.0`

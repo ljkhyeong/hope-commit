@@ -27,7 +27,7 @@ export function chooseReleasePlan({
   currentVersion,
   eventName,
   previousVersion = "",
-  releaseExists,
+  releaseState,
   tagExists,
 }) {
   const version = stableVersion(currentVersion, "현재 버전");
@@ -35,15 +35,25 @@ export function chooseReleasePlan({
     throw new Error(`지원하지 않는 릴리스 이벤트입니다: ${eventName}`);
   }
   if (previousVersion) stableVersion(previousVersion, "직전 버전");
-  if (releaseExists && !tagExists) {
+  if (!["missing", "draft", "published"].includes(releaseState)) {
+    throw new Error("RELEASE_STATE는 missing, draft, published 중 하나여야 합니다.");
+  }
+  if (releaseState === "draft") {
+    throw new Error(
+      `v${version} 미완료 릴리스 초안이 남아 있습니다. `
+      + "초안을 확인하고 docs/release.md의 복구 절차를 따른 뒤 main에서 수동 릴리스를 실행하세요. "
+      + "이 실행은 초안을 삭제하거나 공개하지 않습니다.",
+    );
+  }
+  if (releaseState === "published" && !tagExists) {
     throw new Error(`v${version} GitHub Release에 대응하는 Git 태그가 없습니다.`);
   }
   if (tagExists) {
     return Object.freeze({
       currentTag: `v${version}`,
       currentVersion: version,
-      mode: releaseExists ? "none" : "resume",
-      publish: !releaseExists,
+      mode: releaseState === "published" ? "none" : "resume",
+      publish: releaseState !== "published",
     });
   }
   if (eventName === "workflow_run" && previousVersion === version) {
@@ -78,10 +88,7 @@ async function main(environment = process.env) {
     currentVersion: environment.CURRENT_VERSION,
     eventName: environment.EVENT_NAME,
     previousVersion: environment.PREVIOUS_VERSION,
-    releaseExists: environmentBoolean(
-      environment.RELEASE_EXISTS,
-      "RELEASE_EXISTS",
-    ),
+    releaseState: environment.RELEASE_STATE,
     tagExists: environmentBoolean(environment.TAG_EXISTS, "TAG_EXISTS"),
   });
   await appendFile(environment.GITHUB_OUTPUT, outputLines(plan), "utf8");
