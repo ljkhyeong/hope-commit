@@ -187,16 +187,30 @@ export async function resolveRepositoryPath(value, options = {}) {
   return resolve(root);
 }
 
-async function resolveCommit(repositoryPath, value, options = {}) {
+export async function resolveCommit(repositoryPath, value, options = {}) {
   if (typeof value !== "string" || !/^[a-f0-9]{4,64}$/iu.test(value)) {
     throw new TypeError("Hope Commit needs a hexadecimal commit ID");
   }
-  const resolved = cleanText(await runGit(
+  const prefix = value.toLowerCase();
+  const output = (await runGit(
     repositoryPath,
-    ["rev-parse", "--verify", `${value}^{commit}`],
+    ["rev-parse", `--disambiguate=${prefix}`],
     options,
   )).trim();
-  return validateObjectId(resolved);
+  const candidates = output
+    ? output.split("\n").map((objectId) => validateObjectId(objectId))
+    : [];
+  const types = candidates.length > 0
+    ? await readObjectTypes(repositoryPath, candidates, options)
+    : [];
+  const commits = candidates.filter((_, index) => types[index] === "commit");
+  if (commits.length === 0) {
+    throw new Error(`ID '${value}'와 일치하는 커밋 객체가 없습니다.`);
+  }
+  if (commits.length > 1) {
+    throw new Error(`ID '${value}'와 일치하는 커밋이 여러 개입니다. 더 긴 커밋 ID를 입력하세요.`);
+  }
+  return commits[0];
 }
 
 async function emptyTree(repositoryPath, options = {}) {

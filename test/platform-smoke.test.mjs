@@ -156,6 +156,9 @@ test("설치 패키지가 저장소 밖에서 실제 커밋을 수집·검증하
   await stagePlugin(destination);
   const repository = join(temporaryRoot, "검토할 저장소");
   const commit = await createRepositoryFixture(repository);
+  const shortId = commit.slice(0, 8);
+  git(repository, "branch", shortId, `${commit}^`);
+  git(repository, "tag", shortId, `${commit}^`);
   const dirtyContent = "// 커밋에 없는 작업 트리 전용 내용\n";
   await writeFile(join(repository, "retry.mjs"), dirtyContent, "utf8");
   const statusBefore = git(repository, "status", "--porcelain");
@@ -179,8 +182,10 @@ test("설치 패키지가 저장소 밖에서 실제 커밋을 수집·검증하
     return JSON.parse(result.stdout);
   }
 
+  const target = runCommand(["resolve-target", shortId, "--repo", repository]);
+  assert.equal(target.commit, commit);
   const prepared = runCommand([
-    "prepare", commit, "--repo", repository, "--host-locale", "ko-KR",
+    "prepare", shortId, "--repo", repository, "--host-locale", "ko-KR",
     "--output", outputPath,
   ]);
   assert.equal(prepared.commit.id, commit);

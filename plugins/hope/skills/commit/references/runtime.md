@@ -10,6 +10,11 @@ Commit Diff accepts hexadecimal commit IDs, resolves one full immutable object
 ID, and compares it with one selected parent. A root commit compares with Git's
 empty tree.
 
+대상 확인과 수집은 같은 커밋 객체 조회 함수를 사용합니다. 입력한 ID와 같은
+이름의 브랜치·태그가 있어도 해당 참조를 따라가지 않습니다. 접두사에 일치하는
+커밋 객체가 하나일 때만 선택하며, 여러 커밋이 일치하면 더 긴 ID를 요청합니다.
+일치하는 커밋이 없는 ID와 파일·주석 태그의 객체 ID는 받지 않습니다.
+
 부모 목록은 커밋 객체에서 직접 읽습니다. 선택한 부모가 얕은 복제에 없으면 이력을
 더 받아야 한다고 안내하고 중단하며, 자동으로 원격 저장소에 접속하지 않습니다.
 모든 Git 객체 읽기는 `git replace`의 대체 객체를 무시합니다.
