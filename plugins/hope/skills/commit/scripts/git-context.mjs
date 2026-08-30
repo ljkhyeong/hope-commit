@@ -104,6 +104,7 @@ function exceedsInspectionLineLimit(text) {
 export async function collectLocalGitContext(snapshot, requests, {
   existingBytes = 0,
   exec,
+  execInput,
 } = {}) {
   if (
     !Number.isSafeInteger(existingBytes)
@@ -113,7 +114,7 @@ export async function collectLocalGitContext(snapshot, requests, {
     throw new Error("Hope Commit context has an invalid existing byte count");
   }
   const { repositoryPath, values } = validateRequests(snapshot, requests);
-  const options = exec ? { exec } : {};
+  const options = { exec, execInput };
   const collected = await Promise.all(values.map(async ({ path, revision }) => {
     const privateKind = redactionKind(path, []);
     if (privateKind) {

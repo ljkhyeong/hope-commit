@@ -12,7 +12,34 @@ const execFile = promisify(execFileCallback);
 const GIT_TIMEOUT_MS = 30_000;
 const GIT_MAX_BUFFER = 16 * 1024 * 1024;
 const GIT_BATCH_BODY_BYTES = 4 * 1024 * 1024;
-const GIT_DIFF_OPTIONS = ["--no-ext-diff", "--no-textconv", "--no-color", "--find-renames"];
+const GIT_DIFF_OPTIONS = [
+  "--no-ext-diff",
+  "--no-textconv",
+  "--no-color",
+  "--find-renames",
+  "--ignore-submodules=none",
+];
+const GIT_REPOSITORY_ENV = new Set([
+  "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+  "GIT_COMMON_DIR",
+  "GIT_CONFIG",
+  "GIT_CONFIG_COUNT",
+  "GIT_CONFIG_PARAMETERS",
+  "GIT_DIR",
+  "GIT_GLOB_PATHSPECS",
+  "GIT_GRAFT_FILE",
+  "GIT_ICASE_PATHSPECS",
+  "GIT_IMPLICIT_WORK_TREE",
+  "GIT_INDEX_FILE",
+  "GIT_LITERAL_PATHSPECS",
+  "GIT_NAMESPACE",
+  "GIT_NOGLOB_PATHSPECS",
+  "GIT_OBJECT_DIRECTORY",
+  "GIT_PREFIX",
+  "GIT_REPLACE_REF_BASE",
+  "GIT_SHALLOW_FILE",
+  "GIT_WORK_TREE",
+]);
 
 function execFileWithInput(command, arguments_, options, input) {
   return new Promise((resolvePromise, rejectPromise) => {
@@ -73,7 +100,12 @@ function validateGitPath(value) {
   return value;
 }
 
-async function runGit(repositoryPath, arguments_, {
+function exactFilePathspec(path) {
+  // 마지막 문자도 이스케이프해 같은 이름의 디렉터리 아래까지 선택되는 것을 막는다.
+  return `:(top,glob)${path.replace(/[*?[\\\]]|.$/gu, "\\$&")}`;
+}
+
+export async function runGit(repositoryPath, arguments_, {
   encoding = "utf8",
   exec = execFile,
   execInput = execFileWithInput,
@@ -84,12 +116,20 @@ async function runGit(repositoryPath, arguments_, {
   try {
     const commandArguments = [
       "--no-replace-objects",
+      "--no-lazy-fetch",
       "-C",
       repositoryPath,
       "--literal-pathspecs",
       ...arguments_,
     ];
-    const commandOptions = { encoding, maxBuffer, timeout };
+    const commandOptions = {
+      encoding,
+      env: Object.fromEntries(Object.entries(process.env).filter(
+        ([key]) => !GIT_REPOSITORY_ENV.has(key.toUpperCase()),
+      )),
+      maxBuffer,
+      timeout,
+    };
     const { stdout } = input === undefined
       ? await exec("git", commandArguments, commandOptions)
       : await execInput("git", commandArguments, commandOptions, input);
@@ -112,6 +152,24 @@ async function tryGit(repositoryPath, arguments_, options = {}) {
   } catch {
     return undefined;
   }
+}
+
+async function readObjectTypes(repositoryPath, objects, options = {}) {
+  const output = await runGit(repositoryPath, ["cat-file", "--batch-check=%(objecttype)"], {
+    ...options,
+    input: Buffer.from(`${objects.join("\n")}\n`),
+  });
+  const lines = output.trimEnd().split("\n");
+  if (lines.length !== objects.length) {
+    throw new Error("Git 객체 조회 응답 수가 요청과 다릅니다.");
+  }
+  return lines.map((line, index) => {
+    if (line === `${objects[index]} missing`) return undefined;
+    if (!["blob", "tree", "commit", "tag"].includes(line)) {
+      throw new Error("Git 객체 조회 응답을 해석할 수 없습니다.");
+    }
+    return line;
+  });
 }
 
 async function resolveRepositoryPath(value, options = {}) {
@@ -174,7 +232,8 @@ async function resolveParent(repositoryPath, commit, parentNumber, options = {})
     throw new Error(`Commit has ${parents.length} parent(s); parent ${parentNumber} is unavailable`);
   }
   const parent = parents[parentNumber - 1];
-  if (await tryGit(repositoryPath, ["cat-file", "-e", `${parent}^{commit}`], options) === undefined) {
+  const [parentType] = await readObjectTypes(repositoryPath, [parent], options);
+  if (parentType !== "commit") {
     throw new Error(
       `선택한 부모 커밋 ${parent}을 로컬에서 찾을 수 없습니다. `
       + "얕은 복제라면 Git 이력을 더 받은 뒤 다시 실행하세요.",
@@ -425,11 +484,7 @@ async function readBlobBatch(repositoryPath, descriptors, options = {}) {
 async function readBlob(repositoryPath, revision, path, options = {}) {
   if (!path) return Object.freeze({ state: "absent" });
   const object = `${validateObjectId(revision)}:${validateGitPath(path)}`;
-  const type = cleanText(await tryGit(
-    repositoryPath,
-    ["cat-file", "-t", object],
-    options,
-  ) ?? "").trim();
+  const [type] = await readObjectTypes(repositoryPath, [object], options);
   if (!type) return Object.freeze({ state: "absent" });
   if (type !== "blob") {
     return Object.freeze({
@@ -647,6 +702,7 @@ export async function collectLocalGitCommit(target, {
       const rawPatch = await runGit(
         repositoryPath,
         [
+          "--no-literal-pathspecs",
           "diff",
           ...GIT_DIFF_OPTIONS,
           "--text",
@@ -656,7 +712,7 @@ export async function collectLocalGitCommit(target, {
           parent,
           commit,
           "--",
-          ...[changedFile.previousPath, changedFile.path].filter(Boolean),
+          ...[changedFile.previousPath, changedFile.path].filter(Boolean).map(exactFilePathspec),
         ],
         options,
       );
@@ -765,21 +821,24 @@ export async function collectLocalGitCommit(target, {
 export async function revalidateLocalGitSnapshot(collected, {
   clock = () => new Date(),
   exec,
+  execInput,
 } = {}) {
   const repositoryPath = validateRepositoryPath(collected?.repository?.path);
-  const options = exec ? { exec } : {};
+  const options = { exec, execInput };
   const expectedHead = validateObjectId(collected?.snapshot?.head, "head");
   const expectedBase = validateObjectId(collected?.snapshot?.base, "base");
-  const [head, base] = await Promise.all([
-    tryGit(repositoryPath, ["rev-parse", "--verify", `${expectedHead}^{commit}`], options),
-    tryGit(repositoryPath, ["cat-file", "-e", expectedBase], options),
-  ]);
-  const currentHead = cleanText(head ?? "").trim().toLowerCase();
-  const matches = currentHead === expectedHead && base !== undefined;
+  const [headType, baseType] = await readObjectTypes(
+    repositoryPath,
+    [expectedHead, expectedBase],
+    options,
+  );
+  const currentHead = headType === "commit" ? expectedHead : undefined;
+  const expectedBaseType = collected.commit.parentCount === 0 ? "tree" : "commit";
+  const matches = currentHead === expectedHead && baseType === expectedBaseType;
   return Object.freeze({
     current: {
       base: matches ? expectedBase : undefined,
-      head: currentHead || undefined,
+      head: currentHead,
       mergeBase: matches ? expectedBase : undefined,
     },
     matches,

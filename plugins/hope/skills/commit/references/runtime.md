@@ -14,6 +14,12 @@ empty tree.
 더 받아야 한다고 안내하고 중단하며, 자동으로 원격 저장소에 접속하지 않습니다.
 모든 Git 객체 읽기는 `git replace`의 대체 객체를 무시합니다.
 
+대상 확인, 변경 수집, 맥락 조회와 재검증은 같은 Git 실행 함수를 사용합니다.
+저장소와 경로 선택을 바꾸는 환경변수는 자식 프로세스에서 제외합니다.
+`--no-lazy-fetch`로 부분 복제의 누락 객체를 자동 다운로드하지 않으며, 필요한
+객체가 로컬에 없으면 수집을 중단합니다. 이 옵션을 지원하지 않는 Git에서도
+차단 없이 계속 실행하지 않습니다.
+
 Changed content and requested context come from Git objects. Staged, unstaged,
 and untracked files do not enter the snapshot. The runtime rejects unsafe paths,
 redacts private configuration and high-confidence credentials, and bounds every
@@ -23,6 +29,11 @@ file, source body, inspection page, analysis, evidence range, and artifact.
 변경 줄 수를 수집합니다. 바이너리, 크기 제한 초과 파일과 비밀정보 제외 기준은
 그대로 적용하며, 외부 diff와 textconv 명령은 실행하지 않습니다.
 
+파일별 패치는 변경 전·후의 정확한 파일 경로만 선택합니다. 파일과 디렉터리가
+서로 바뀌어도 비공개 하위 파일의 본문이 다른 파일의 패치에 포함되지 않으며,
+상하위 디렉터리 사이의 파일 이동도 이름 변경 패치로 보존합니다.
+서브모듈 무시 설정과 관계없이 커밋의 서브모듈 변경은 파일 목록에 포함합니다.
+
 The model selects a focused continuous interval. The runtime validates and
 splits it into bounded rendered references without dropping selected lines. It
 derives file accounting, scope, links, source excerpts, and resource counters
@@ -31,6 +42,9 @@ instead of trusting authored copies.
 Before publication, Commit Diff confirms that the captured commit and parent
 objects still exist. Missing objects stop publication rather than presenting an
 unverifiable review.
+
+객체가 없는 경우와 Git 명령 실행 실패를 구분합니다. 접근 오류 등으로 재검증할 수
+없으면 작성한 분석을 보존하고 같은 실행에서 발행을 재시도할 수 있게 합니다.
 
 ## Untrusted, bounded input
 

@@ -370,6 +370,33 @@ test("Commit Diff가 준비한 상태를 검증하고 재검증한 뒤 HTML을 �
   await assert.rejects(access(prepared.path), (error) => error.code === "ENOENT");
 });
 
+test("Git 접근 오류 뒤 분석을 보존하고 같은 실행에서 발행을 재시도한다", async () => {
+  const temporaryRoot = await createTestTemporaryDirectory("hope-commit-revalidation-");
+  const outputPath = join(temporaryRoot, "review.html");
+  const { prepared, run, dependencies } = await createInspectedCommitRun(temporaryRoot, { outputPath });
+  const analysis = `${JSON.stringify(makeLifecycleAnalysis(run), null, 2)}\n`;
+  await writeFile(prepared.analysisPath, analysis, { flag: "wx", mode: 0o600 });
+  const failGit = async () => {
+    throw Object.assign(new Error("재현용 Git 접근 오류"), { code: "EACCES" });
+  };
+
+  await assert.rejects(finishDiff(prepared.path, {
+    ...dependencies,
+    git: failGit,
+    gitInput: failGit,
+  }), (error) => (
+    error.code === "HOPE_DIFF_REVALIDATION_RETRYABLE" && error.canRetry === true
+  ));
+  assert.equal(await readFile(prepared.analysisPath, "utf8"), analysis);
+  assert.equal((await loadDiffRun(prepared.path, { temporaryRoot })).snapshot.digest, prepared.snapshotDigest);
+  await assert.rejects(access(outputPath), (error) => error.code === "ENOENT");
+
+  const finished = await finishDiff(prepared.path, dependencies);
+  assert.equal(finished.outputPath, outputPath);
+  assert.match(await readFile(outputPath, "utf8"), /<!doctype html>/iu);
+  await assert.rejects(access(prepared.path), (error) => error.code === "ENOENT");
+});
+
 for (const failurePoint of ["inspection-page", "ledger-state", "manifest"]) {
   test(`Commit Diff가 ${failurePoint} 중단 뒤 같은 맥락 세대를 재시도한다`, async () => {
     const temporaryRoot = await createTestTemporaryDirectory(

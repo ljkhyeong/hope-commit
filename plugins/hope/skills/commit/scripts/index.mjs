@@ -535,6 +535,7 @@ export async function addDiffContext(runPath, requestIds, dependencies = {}) {
       0,
     ),
     exec: dependencies.git,
+    execInput: dependencies.gitInput,
   });
   const previousLimitCount = run.snapshot.limits.length;
   const previousSourceCount = run.snapshot.sources.length;
@@ -655,6 +656,7 @@ export async function finishDiff(runPath, dependencies = {}) {
         )(run.snapshot, {
           clock: dependencies.clock,
           exec: dependencies.git,
+          execInput: dependencies.gitInput,
         });
       } catch (error) {
         preserveRun = true;
