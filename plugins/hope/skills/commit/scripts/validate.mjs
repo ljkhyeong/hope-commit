@@ -1114,6 +1114,15 @@ function validateAnalysisIdentity(analysis, snapshot, runId) {
   }
 }
 
+export function assertReviewableSnapshot(snapshot) {
+  if (!snapshot.files.some((file) => file.bodyState === "included")) {
+    throw new Error(
+      "검토할 수 있는 텍스트 변경 파일이 없습니다. "
+      + "빈 커밋이나 본문이 모두 제외된 커밋은 지원하지 않습니다.",
+    );
+  }
+}
+
 function validateAnalysisValue(analysis, snapshot, {
   analysisFileBytes,
   enforceResourceLimits = true,
@@ -1274,9 +1283,7 @@ function validateAnalysisValue(analysis, snapshot, {
   if (title.evidence.some((item) => !renderedCoreEvidence.has(evidenceRange(item)))) {
     throw new Error("title.evidence must reuse evidence rendered by coreChange");
   }
-  if (!snapshot.files.some((file) => file.bodyState === "included")) {
-    throw new Error("The core change cannot be grounded without an included file");
-  }
+  assertReviewableSnapshot(snapshot);
   for (const [name, value] of [
     ["coreChange.before", coreChange.before],
     ["coreChange.after", coreChange.after],

@@ -12,6 +12,7 @@ const execFile = promisify(execFileCallback);
 const GIT_TIMEOUT_MS = 30_000;
 const GIT_MAX_BUFFER = 16 * 1024 * 1024;
 const GIT_BATCH_BODY_BYTES = 4 * 1024 * 1024;
+const GIT_SHOW_OPTIONS = ["-s", "--no-show-signature", "--encoding=UTF-8"];
 const GIT_DIFF_OPTIONS = [
   "--no-ext-diff",
   "--no-textconv",
@@ -588,10 +589,10 @@ export async function collectLocalGitCommit(target, {
     options,
   );
   const [subjectValue, bodyValue, authorValue, authoredAtValue, remoteValue] = await Promise.all([
-    runGit(repositoryPath, ["show", "-s", "--format=%s", commit], options),
-    runGit(repositoryPath, ["show", "-s", "--format=%b", commit], options),
-    runGit(repositoryPath, ["show", "-s", "--format=%an", commit], options),
-    runGit(repositoryPath, ["show", "-s", "--format=%aI", commit], options),
+    runGit(repositoryPath, ["show", ...GIT_SHOW_OPTIONS, "--format=%s", commit], options),
+    runGit(repositoryPath, ["show", ...GIT_SHOW_OPTIONS, "--format=%b", commit], options),
+    runGit(repositoryPath, ["show", ...GIT_SHOW_OPTIONS, "--format=%an", commit], options),
+    runGit(repositoryPath, ["show", ...GIT_SHOW_OPTIONS, "--format=%aI", commit], options),
     tryGit(repositoryPath, ["config", "--get", "remote.origin.url"], options),
   ]);
   const subject = cleanText(subjectValue).trim();

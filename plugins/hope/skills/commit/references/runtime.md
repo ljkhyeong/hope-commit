@@ -20,6 +20,9 @@ empty tree.
 객체가 로컬에 없으면 수집을 중단합니다. 이 옵션을 지원하지 않는 Git에서도
 차단 없이 계속 실행하지 않습니다.
 
+커밋 제목·본문·작성자·작성 시각은 UTF-8로 조회합니다. 저장소의 서명 표시
+설정과 관계없이 서명 확인 프로그램을 실행하지 않습니다.
+
 Changed content and requested context come from Git objects. Staged, unstaged,
 and untracked files do not enter the snapshot. The runtime rejects unsafe paths,
 redacts private configuration and high-confidence credentials, and bounds every
@@ -33,6 +36,11 @@ file, source body, inspection page, analysis, evidence range, and artifact.
 서로 바뀌어도 비공개 하위 파일의 본문이 다른 파일의 패치에 포함되지 않으며,
 상하위 디렉터리 사이의 파일 이동도 이름 변경 패치로 보존합니다.
 서브모듈 무시 설정과 관계없이 커밋의 서브모듈 변경은 파일 목록에 포함합니다.
+
+리뷰에는 본문을 수집할 수 있는 텍스트 변경 파일이 최소 하나 필요합니다.
+빈 커밋이나 바이너리·서브모듈·비공개 파일 등 본문이 제외된 파일만 변경한
+커밋은 준비 단계에서 안내하고 중단합니다. 이때 분석 실행이나 임시 분석 파일을
+만들지 않습니다.
 
 The model selects a focused continuous interval. The runtime validates and
 splits it into bounded rendered references without dropping selected lines. It

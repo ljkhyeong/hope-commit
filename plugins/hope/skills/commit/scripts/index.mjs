@@ -39,7 +39,7 @@ import {
   nextAfterPrepare,
   nextAfterValidation,
 } from "./transitions.mjs";
-import { validateAnalysis } from "./validate.mjs";
+import { assertReviewableSnapshot, validateAnalysis } from "./validate.mjs";
 
 export const DIFF_REVALIDATION_RETRYABLE_CODE =
   "HOPE_DIFF_REVALIDATION_RETRYABLE";
@@ -324,6 +324,7 @@ export async function prepareDiff({
     theme: display.theme,
     themeSource: display.themeSource,
   });
+  assertReviewableSnapshot(snapshot);
   const run = await (dependencies.createRun ?? createDiffRun)(snapshot, {
     clock: dependencies.clock,
     outputPath: preparedOutputPath,

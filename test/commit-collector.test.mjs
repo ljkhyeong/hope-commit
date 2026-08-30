@@ -122,6 +122,45 @@ test("compares a root commit with the empty tree", async (t) => {
   assert.equal((await revalidateLocalGitSnapshot(snapshot)).matches, true);
 });
 
+test("서명 표시 설정이 켜져 있어도 수집 중 서명 확인 프로그램을 실행하지 않는다", async (t) => {
+  const fixture = await repositoryFixture();
+  t.after(async () => rm(fixture.repository, { force: true, recursive: true }));
+  const verifier = join(fixture.repository, "verifier.sh");
+  const marker = join(fixture.repository, "signature-program-ran");
+  await writeFile(verifier, "#!/bin/sh\nprintf invoked > signature-program-ran\nexit 1\n");
+  await chmod(verifier, 0o700);
+  const original = git(fixture.repository, "cat-file", "commit", fixture.head);
+  const signedCommit = original.replace("\n\n",
+    "\ngpgsig -----BEGIN PGP SIGNATURE-----\n fixture-signature\n -----END PGP SIGNATURE-----\n\n");
+  const commit = gitWithInput(fixture.repository, ["hash-object", "-t", "commit", "-w", "--stdin"], signedCommit);
+  git(fixture.repository, "config", "gpg.program", verifier);
+  git(fixture.repository, "config", "log.showSignature", "true");
+
+  git(fixture.repository, "show", "--show-signature", "-s", "--format=%s", commit);
+  await access(marker);
+  await unlink(marker);
+
+  const snapshot = await collectLocalGitCommit({ commit, repositoryPath: fixture.repository });
+  assert.equal(snapshot.commit.subject, "Change example");
+  await assert.rejects(access(marker), (error) => error.code === "ENOENT");
+});
+
+test("Git 출력 인코딩 설정과 관계없이 한글 커밋 정보를 보존한다", async (t) => {
+  const fixture = await repositoryFixture();
+  t.after(async () => rm(fixture.repository, { force: true, recursive: true }));
+  git(fixture.repository, "config", "user.name", "검토 테스트");
+  await writeFile(join(fixture.repository, "example.txt"), "변경한 내용\n");
+  git(fixture.repository, "add", "example.txt");
+  git(fixture.repository, "commit", "-m", "한글 변경 제목", "-m", "본문도 한글로 보존합니다.");
+  const commit = git(fixture.repository, "rev-parse", "HEAD");
+  git(fixture.repository, "config", "i18n.logOutputEncoding", "CP949");
+
+  const snapshot = await collectLocalGitCommit({ commit, repositoryPath: fixture.repository });
+  assert.equal(snapshot.commit.subject, "한글 변경 제목");
+  assert.equal(snapshot.commit.body, "본문도 한글로 보존합니다.");
+  assert.equal(snapshot.commit.author, "검토 테스트");
+});
+
 for (const toDirectory of [true, false]) {
   test(`${toDirectory ? "파일→디렉터리" : "디렉터리→파일"} 변경에서 비공개 하위 파일을 패치에 섞지 않는다`, async (t) => {
     const fixture = await repositoryFixture();

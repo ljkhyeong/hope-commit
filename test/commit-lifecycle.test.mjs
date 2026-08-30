@@ -4,6 +4,7 @@ import {
   access,
   open,
   readFile,
+  readdir,
   rm,
   unlink,
   writeFile,
@@ -369,6 +370,30 @@ test("Commit Diff가 준비한 상태를 검증하고 재검증한 뒤 HTML을 �
   assert.match(await readFile(outputPath, "utf8"), /<!doctype html>/iu);
   await assert.rejects(access(prepared.path), (error) => error.code === "ENOENT");
 });
+
+for (const kind of ["빈 커밋", "바이너리", "서브모듈", "비공개 파일"]) {
+  test(`${kind}만 있는 변경은 분석 실행을 만들기 전에 중단한다`, async () => {
+    const temporaryRoot = await createTestTemporaryDirectory("hope-commit-unsupported-");
+    const base = await createRepositoryFixture(temporaryRoot);
+    if (kind === "바이너리") {
+      await writeFile(join(temporaryRoot, "image.bin"), Buffer.from([0, 1, 2]));
+      git(temporaryRoot, "add", "image.bin");
+    } else if (kind === "서브모듈") {
+      git(temporaryRoot, "update-index", "--add", "--cacheinfo", `160000,${base},vendor`);
+    } else if (kind === "비공개 파일") {
+      await writeFile(join(temporaryRoot, ".env"), "PASSWORD=fixture-value\n");
+      git(temporaryRoot, "add", ".env");
+    }
+    git(temporaryRoot, "commit", "--allow-empty", "-m", "검토 본문 없는 변경");
+    const commit = git(temporaryRoot, "rev-parse", "HEAD");
+    const entries = await readdir(temporaryRoot);
+
+    await assert.rejects(runCommitCommand([
+      "prepare", commit, "--repo", temporaryRoot, "--host-locale", "ko-KR",
+    ], commandDependencies(temporaryRoot)), /검토할 수 있는 텍스트 변경 파일이 없습니다/u);
+    assert.deepEqual(await readdir(temporaryRoot), entries);
+  });
+}
 
 test("Git 접근 오류 뒤 분석을 보존하고 같은 실행에서 발행을 재시도한다", async () => {
   const temporaryRoot = await createTestTemporaryDirectory("hope-commit-revalidation-");
