@@ -4,7 +4,7 @@ import test from "node:test";
 import {
   main,
   parseAlignArguments,
-} from "../plugins/hope-commit/skills/align/scripts/cli.mjs";
+} from "../plugins/hope/skills/align/scripts/cli.mjs";
 
 test("Align CLI accepts only complete private adapter commands", () => {
   assert.deepEqual(
@@ -51,6 +51,7 @@ test("Align CLI accepts only complete private adapter commands", () => {
     () => parseAlignArguments(["inspect", "--artifact", "x", "--root", "y"]),
     /Internal Skill/u,
   );
+  assert.throws(() => parseAlignArguments(["migrate-input", "--input", "x"]), /Internal Skill/u);
 });
 
 test("Align CLI writes structured results", async () => {

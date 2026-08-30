@@ -1,235 +1,86 @@
 # Hope architecture
 
-Hope is a set of focused features for working with AI.
+This document is Hope's long-term structure contract. People and agents must
+preserve its layer responsibilities and dependency directions.
 
-This repository currently distributes those features as one plugin for Codex
-and Claude Code.
+It records only stable structure. Product direction, visual contracts, release
+rules, and work procedures belong to [PRINCIPLES.md](../PRINCIPLES.md),
+[design.md](design.md), [release.md](release.md), and
+[CONTRIBUTING.md](../CONTRIBUTING.md). Feature inventories, tool instructions,
+and enforcement mechanisms also stay outside this document.
 
-Delivery exposes Hope but does not define feature behavior.
+## Layers and responsibilities
 
-There is no independent Hope CLI or harness.
+### Delivery metadata
 
-## Sources of truth
+Delivery metadata exposes Hope's features to a host. It may depend on a feature
+interface but cannot define feature behavior. Feature sources do not depend on
+delivery metadata.
 
-- [PRINCIPLES.md](../PRINCIPLES.md) defines the project direction.
-- Each `plugins/hope-commit/skills/<feature>/SKILL.md` defines one feature's behavior.
-- A Skill's `references/` directory owns detailed or conditional guidance.
-- [design.md](design.md) defines Hope's GUI guidance and the Align, Diff, and
-  Commit Diff artifact visual contracts.
-- [release.md](release.md) defines the public package and release process.
-- This document defines repository structure and dependency boundaries.
+### Feature interface
 
-The `docs/` directory is for topic-specific repository contracts that become
-relevant after the kind of work is known.
+Each feature has one editable Skill boundary. That boundary owns the feature's
+behavior, model judgment, conversation flow, and private guidance.
 
-It must not contain another description of behavior already owned by a Skill.
+Published shared guidance owns only invariants used across feature boundaries.
+A feature does not depend on another feature's private source.
 
-A separate audience is not enough reason to keep parallel behavior text.
+### Feature runtime
 
-Link to the authoritative source unless another document owns a distinct
-contract or obligation.
+A feature owns the deterministic runtime needed to control external state or
+produce a deterministic result.
+
+Runtime source stays inside its feature boundary and does not depend on a
+sibling feature or repository support. It may depend on Hope-wide immutable
+assets.
+
+Diff and Commit Diff also depend on `plugins/hope/review-core/`. This published
+shared runtime contains only the canonical JSON hash, evidence-range splitting,
+text and redaction safety, review-result derivation, and bounded structured
+input used by both features. Collection, workflow, state, rendering, and
+publication remain inside the owning feature.
+
+Any other cross-feature source dependency requires an explicit shared contract
+and must satisfy the shared-source rule in
+[PRINCIPLES.md](../PRINCIPLES.md#keep-each-feature-close-together).
+
+### Repository support
+
+Repository support builds and verifies delivery metadata, feature interfaces,
+and feature runtime. Product sources do not depend on repository support.
+
+The package builder is delivery support, not a product runtime or an
+independent Hope compiler.
+
+### Runtime effects
+
+Feature contracts own guarantees for external capabilities, temporary state,
+safe publication, and generated artifacts. Runtime effects are not repository
+source dependencies.
 
 ## Dependency direction
 
+Solid arrows point from repository sources to their source dependencies.
+Dotted arrows point from runtime to effects owned by the feature contract.
+
 ```mermaid
 flowchart LR
-  C["Codex delivery"] --> S["Hope Skills"]
-  L["Claude Code delivery"] --> S
-  S --> I["Instructions and references"]
-  S --> A["Align deterministic code"]
-  S --> G["Commit Diff deterministic code and assets"]
-  S --> D["Diff deterministic code and assets"]
-  A --> H["Self-contained HTML"]
-  G --> H
-  D --> H
+  D["Delivery metadata"] --> F["Feature interface"]
+  F --> G["Published shared guidance"]
+  F --> R["Feature runtime"]
+  R --> C["Published review core"]
+  R --> A["Shared immutable assets"]
+  T["Repository support"] --> D
+  T --> F
+  T --> R
+  R -. "uses" .-> E["External capabilities"]
+  R -. "produces" .-> O["Artifacts and external state"]
 ```
 
-The arrows point from delivery toward feature behavior.
+## Enforcement boundary
 
-Manifests and marketplace metadata may describe discovery but must not define a
-different feature.
+CI verifies the source dependencies that can be determined mechanically. The
+executable checks own their detection mechanisms.
 
-Each Skill's `agents/openai.yaml` is also delivery metadata. It must describe
-the owning Skill and cannot add or change feature behavior.
-
-Feature references and scripts must not read a plugin manifest, marketplace
-configuration, installed-cache path, or host-specific root variable.
-
-Keep host-specific path resolution in `SKILL.md` or repository tooling.
-
-Use delivery-neutral language for feature judgment and workflow rules.
-
-## Folders
-
-```text
-hope-commit/
-├── .agents/             Codex local marketplace catalog
-├── .claude-plugin/      Claude local marketplace catalog
-├── assets/              README captures
-├── docs/                Topic-specific repository, release, and design contracts
-├── e2e/                 Browser acceptance tests
-├── plugins/hope-commit/ Installable Codex and Claude package
-├── test/                Deterministic and package tests
-├── test-support/        Shared deterministic test fixtures
-└── tools/               Build, validation, staging, and release scripts
-```
-
-Keep a Markdown file at the repository root when a tool or common convention
-expects it there, or when nearly every contribution must find it before the
-kind of work is known.
-
-Keep a topic-specific repository contract under `docs/` even when it governs
-several folders or the whole repository within that topic.
-
-Keep directory-local guidance beside the files it governs.
-
-Do not choose a location from importance or file size alone.
-
-## Feature boundary
-
-The current editable source of every feature lives under
-`plugins/hope-commit/skills/`.
-
-```text
-plugins/hope-commit/
-├── .codex-plugin/plugin.json
-├── .claude-plugin/plugin.json
-├── assets/
-├── review-core/         Proven pure invariants shared by Diff and Commit Diff
-└── skills/
-    ├── align/
-    │   ├── SKILL.md
-    │   ├── references/
-    │   └── scripts/
-    ├── diff/
-    │   ├── SKILL.md
-    │   ├── references/
-    │   ├── scripts/
-    │   └── assets/
-    ├── commit/
-    │   ├── SKILL.md
-    │   ├── references/
-    │   ├── scripts/
-    │   └── assets/
-    ├── polish/
-    │   ├── SKILL.md
-    │   └── references/
-    ├── sweep/
-    │   └── SKILL.md
-    ├── toxic-review/
-    │   ├── SKILL.md
-    │   └── references/
-    └── write/
-        ├── SKILL.md
-        └── references/
-```
-
-Keep model judgment and conversation flow in a concise `SKILL.md`.
-
-Put long or conditional guidance in `references/` and load it only when needed.
-
-Add `scripts/` only when code must control external state or a deterministic
-result.
-
-Keep private assets beside their only feature consumer.
-
-Do not generate Skill instructions or keep a repository mirror of them.
-
-Shared code needs two real consumers with the same invariant. `review-core/`
-contains only the canonical JSON hash, evidence-range splitting, text and
-redaction safety, review-result derivation, and bounded structured-input reader
-used by both Diff and Commit Diff. It does not own collection, workflow, state,
-rendering, or publication.
-
-Align, Diff, and Commit Diff own their visual tokens, rendering, and publication
-behavior independently. Commit Diff started from Diff's bounded review design,
-but does not import Diff at runtime.
-
-Do not add a generic runner, manager, registry, state machine, compatibility
-layer, or second delivery path for a possible future need.
-
-If another delivery form earns its place, reorganize the feature without
-rewriting its behavior.
-
-## Deterministic code boundary
-
-Align, Diff, and Commit Diff currently need deterministic code.
-
-Their scripts live beside their owning Skills and do not form a shared runtime.
-Diff and Commit Diff import the small `review-core/` modules only for the exact
-invariants listed above.
-
-Each Skill and its references own workflow and model judgment.
-
-Align's scripts own bounded structured input, HTML identity, rendering, safe
-project publication, and same-artifact revision. Diff's scripts own external
-source identity, bounds, validation, rendering, temporary state, and
-publication. Commit Diff owns local Git commit resolution, parent selection,
-immutable object collection, revalidation, rendering, temporary state, and
-publication.
-
-[Align's artifact contract](../plugins/hope-commit/skills/align/references/artifact.md)
-and [Diff's runtime contract](../plugins/hope-commit/skills/diff/references/runtime.md)
-and [Commit Diff's runtime contract](../plugins/hope-commit/skills/commit/references/runtime.md)
-define the feature-specific guarantees enforced at those boundaries.
-
-Extract shared code only after another feature needs the same invariant.
-
-## Package boundary
-
-Both host manifests point at the same `skills/` directory.
-
-Skill instructions, references, scripts, schemas, locales, and private assets
-ship directly from their editable paths.
-
-The bounded `review-core/` modules also ship from their editable paths because
-Diff and Commit Diff import them directly.
-
-Hope-wide brand fonts and the product icon live under `plugins/hope-commit/assets/`
-because Align, Diff, and Commit Diff embed the same fixed files. Each feature
-renderer still owns its HTML, CSS, layout, and use of those assets.
-
-`tools/build-plugin.mjs` copies the root `LICENSE` and `NOTICE` into the package.
-
-`tools/plugin-files.mjs` records that source mapping and derives the exact
-package allowlist in `tools/plugin-package-files.txt`.
-
-An unrelated file under `plugins/hope-commit/` cannot enter a release accidentally.
-
-Do not edit generated package files by hand.
-
-## Verification
-
-- Skill tests cover discovery metadata and packaged references.
-- Node tests cover Align identity, revisions, rendering, and safe publication;
-  Diff parsing, snapshots, citations, rendering, stale-source checks, bounded
-  input, temporary-state ownership, and safe publication; and Commit Diff's
-  commit resolution, root and merge handling, immutable blobs, renames, and
-  exact-revision context collection.
-- Browser tests cover the original artifacts' layout, keyboard behavior,
-  accessibility, responsive navigation, printing, and no-JavaScript reading.
-- Package tests cover direct Skill sources, the generated license, and the
-  exact release allowlist.
-
-Linux runs the deterministic suite on Node.js 22, 24, and 26.
-
-macOS and Windows run focused Node.js 22 package and path smoke tests.
-
-Representative prompts for instruction-led Skills are development and product
-smoke checks, not automated release gates.
-
-Skill discovery and manifest validation do not prove feature behavior.
-
-## Changing Hope
-
-Start with a clear user goal and edit the matching Skill directly.
-
-Add a reference only for conditional detail and a script only for a
-deterministic or external-state boundary.
-
-Update the README when user-facing capability changes.
-
-Add or change a document under `docs/` only for a cross-feature, repository,
-release, or visual contract that has no existing owner.
-
-Test discovery and every deterministic promise that remains.
+Human review and behavior-focused tests own semantic responsibilities and
+runtime guarantees that source dependency checks cannot decide.

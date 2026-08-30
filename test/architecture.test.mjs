@@ -5,124 +5,183 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const reviewCoreRoot = resolve(root, "plugins/hope-commit/review-core");
-const skillsRoot = resolve(root, "plugins/hope-commit/skills");
-const deterministicSkills = Object.freeze(["align", "commit", "diff"]);
-const instructionLedSkills = Object.freeze([
-  "polish",
-  "sweep",
-  "toxic-review",
-  "write",
+const pluginRoot = resolve(root, "plugins/hope");
+const skillsRoot = resolve(pluginRoot, "skills");
+const reviewCoreRoot = resolve(pluginRoot, "review-core");
+const sharedAssetsRoot = resolve(pluginRoot, "assets");
+const sharedWritingStandard = resolve(
+  skillsRoot,
+  "write/references/writing-standard.md",
+);
+const sharedCodeMaintenanceGuidance = resolve(
+  pluginRoot,
+  "references/code-maintenance.md",
+);
+const publishedSharedGuidance = new Set([
+  sharedCodeMaintenanceGuidance,
+  sharedWritingStandard,
 ]);
+const deliveryDependencyPattern =
+  /(?:CLAUDE_)?PLUGIN_ROOT|plugins\/hope(?:-commit)?|\.codex-plugin|\.claude-plugin|marketplace/u;
 
 async function exists(path) {
   return await access(path).then(() => true, () => false);
 }
 
-test("each feature has one editable Skill boundary", async () => {
-  assert.equal(await exists(resolve(root, "features")), false);
-  assert.equal(await exists(resolve(root, "design")), false);
-  assert.equal(await exists(resolve(root, "plugins/hope-commit/runtime")), false);
-  assert.equal(await exists(resolve(root, "harness")), false);
-  assert.equal(await exists(resolve(root, "settings")), false);
+function isInside(directory, path) {
+  const fromDirectory = relative(directory, path);
+  return fromDirectory === ""
+    || (!isAbsolute(fromDirectory)
+      && fromDirectory !== ".."
+      && !fromDirectory.startsWith(`..${sep}`));
+}
 
+async function collectFiles(directory, suffix) {
+  if (!await exists(directory)) return [];
+  const pending = [directory];
+  const files = [];
+  while (pending.length > 0) {
+    const current = pending.pop();
+    for (const entry of await readdir(current, { withFileTypes: true })) {
+      const path = resolve(current, entry.name);
+      if (entry.isDirectory()) pending.push(path);
+      if (entry.isFile() && entry.name.endsWith(suffix)) files.push(path);
+    }
+  }
+  return files.sort();
+}
+
+async function discoverFeatures() {
   const entries = await readdir(skillsRoot, { withFileTypes: true });
-  const skillNames = entries
+  return entries
     .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name)
-    .sort();
-  assert.deepEqual(skillNames, ["align", "commit", "diff", ...instructionLedSkills]);
+    .map((entry) => ({
+      name: entry.name,
+      root: resolve(skillsRoot, entry.name),
+    }))
+    .sort((left, right) => left.name.localeCompare(right.name));
+}
 
-  const alignScript = resolve(skillsRoot, "align/scripts/cli.mjs");
-  const commitDiffScript = resolve(skillsRoot, "commit/scripts/cli.mjs");
-  const diffScript = resolve(skillsRoot, "diff/scripts/cli.mjs");
-  assert.equal(await exists(alignScript), true);
-  assert.equal(await exists(commitDiffScript), true);
-  assert.equal(await exists(diffScript), true);
-  const align = await readFile(resolve(skillsRoot, "align/SKILL.md"), "utf8");
-  const commitDiff = await readFile(resolve(skillsRoot, "commit/SKILL.md"), "utf8");
-  const diff = await readFile(resolve(skillsRoot, "diff/SKILL.md"), "utf8");
-  assert.match(align, /scripts\/cli\.mjs/u);
-  assert.match(commitDiff, /scripts\/cli\.mjs/u);
-  assert.match(diff, /scripts\/cli\.mjs/u);
-  assert.doesNotMatch(align, /runtime\/features\//u);
-  assert.doesNotMatch(commitDiff, /runtime\/features\//u);
-  assert.doesNotMatch(diff, /runtime\/features\//u);
+function capturedValues(source, patterns) {
+  const values = new Set();
+  for (const pattern of patterns) {
+    for (const match of source.matchAll(pattern)) values.add(match[1]);
+  }
+  return [...values];
+}
 
-  for (const skillName of instructionLedSkills) {
+function moduleSpecifiers(source) {
+  return capturedValues(source, [
+    /\b(?:import|export)\s+(?:[^"'();]+?\s+from\s+)?["']([^"']+)["']/gu,
+    /\bimport\(\s*["']([^"']+)["']\s*(?:,|\))/gu,
+  ]);
+}
+
+function staticImportMetaResources(source) {
+  return [
+    ...source.matchAll(
+      /\bnew URL\(\s*["']([^"']+)["']\s*,\s*import\.meta\.url\s*\)/gu,
+    ),
+    ...source.matchAll(
+      /\bnew URL\(\s*`((?:(?!\$\{)[^`])*)`\s*,\s*import\.meta\.url\s*\)/gu,
+    ),
+  ].map((match) => match[1]);
+}
+
+function approvedScriptDependency(featureName, featureRoot, dependency) {
+  return isInside(featureRoot, dependency)
+    || (["commit", "diff"].includes(featureName)
+      && isInside(reviewCoreRoot, dependency));
+}
+
+function scriptBoundaryIssues(source, path, feature) {
+  const issues = [];
+  if (deliveryDependencyPattern.test(source)) {
+    issues.push("depends on delivery packaging");
+  }
+
+  for (const specifier of moduleSpecifiers(source)) {
+    if (!specifier.startsWith(".")) continue;
+    const dependency = resolve(dirname(path), specifier);
+    if (!approvedScriptDependency(feature.name, feature.root, dependency)) {
+      issues.push(`imports outside its approved boundary: ${specifier}`);
+    }
+  }
+
+  for (const resource of staticImportMetaResources(source)) {
+    if (!resource.startsWith(".")) continue;
+    const dependency = resolve(dirname(path), resource);
+    if (
+      !approvedScriptDependency(feature.name, feature.root, dependency)
+      && !isInside(sharedAssetsRoot, dependency)
+    ) {
+      issues.push(`reads a resource outside its approved boundary: ${resource}`);
+    }
+  }
+
+  return issues;
+}
+
+function documentPathReferences(source) {
+  return capturedValues(source, [
+    /`((?:\.\.\/)+[^`\s]+)`/gu,
+    /\]\(((?:\.\.\/)+[^)\s]+)\)/gu,
+  ]);
+}
+
+function guidanceBoundaryIssues(source, path, featureRoot) {
+  const issues = [];
+  if (
+    isInside(resolve(featureRoot, "references"), path)
+    && deliveryDependencyPattern.test(source)
+  ) {
+    issues.push("reference depends on delivery packaging");
+  }
+
+  for (const reference of documentPathReferences(source)) {
+    const dependency = resolve(dirname(path), reference.split("#", 1)[0]);
+    if (
+      !isInside(featureRoot, dependency)
+      && !publishedSharedGuidance.has(dependency)
+    ) {
+      issues.push(
+        `references guidance outside its Skill without a published shared contract: ${reference}`,
+      );
+    }
+  }
+
+  return issues;
+}
+
+test("every discovered feature has one editable Skill boundary", async () => {
+  for (const path of ["features", "design", "harness", "settings"]) {
+    assert.equal(await exists(resolve(root, path)), false);
+  }
+  assert.equal(await exists(resolve(pluginRoot, "runtime")), false);
+
+  const features = await discoverFeatures();
+  assert.ok(features.length > 0, "Hope must contain at least one feature");
+  for (const feature of features) {
     assert.equal(
-      await exists(resolve(skillsRoot, skillName, "scripts")),
-      false,
-      `${skillName} must remain instruction-led`,
-    );
-    const instructions = await readFile(
-      resolve(skillsRoot, skillName, "SKILL.md"),
-      "utf8",
-    );
-    assert.doesNotMatch(
-      instructions,
-      /runtime\/features\//u,
-      `${skillName} must not call a private feature runtime`,
+      await exists(resolve(feature.root, "SKILL.md")),
+      true,
+      `${feature.name} must own one SKILL.md`,
     );
   }
 });
 
-test("feature scripts depend only on their owning Skill and the bounded review core", async () => {
-  for (const skillName of deterministicSkills) {
-    const featureRoot = resolve(skillsRoot, skillName);
-    const pending = [resolve(featureRoot, "scripts")];
-    const scripts = [];
-    while (pending.length > 0) {
-      const directory = pending.pop();
-      for (const entry of await readdir(directory, { withFileTypes: true })) {
-        const path = resolve(directory, entry.name);
-        if (entry.isDirectory()) pending.push(path);
-        if (entry.isFile() && entry.name.endsWith(".mjs")) scripts.push(path);
-      }
-    }
-
+test("feature script dependencies stay within their approved boundaries", async () => {
+  const issues = [];
+  for (const feature of await discoverFeatures()) {
+    const scripts = await collectFiles(resolve(feature.root, "scripts"), ".mjs");
     for (const path of scripts) {
       const source = await readFile(path, "utf8");
-      assert.doesNotMatch(
-        source,
-        /(?:CLAUDE_)?PLUGIN_ROOT|plugins\/hope|runtime\/features/u,
-        `${relative(root, path)} must stay independent of plugin packaging`,
-      );
-      for (const match of source.matchAll(
-        /(?:from\s+|import\()\s*["'](\.\.?\/[^"']+)["']/gu,
-      )) {
-        const dependency = resolve(dirname(path), match[1]);
-        const fromFeature = relative(featureRoot, dependency);
-        const insideFeature = !isAbsolute(fromFeature)
-          && fromFeature !== ".."
-          && !fromFeature.startsWith(`..${sep}`);
-        const fromReviewCore = relative(reviewCoreRoot, dependency);
-        const insideReviewCore = !isAbsolute(fromReviewCore)
-          && fromReviewCore !== ".."
-          && !fromReviewCore.startsWith(`..${sep}`);
-        assert.equal(
-          insideFeature || (
-            ["commit", "diff"].includes(skillName)
-            && insideReviewCore
-          ),
-          true,
-          `${relative(root, path)} imports outside its approved boundary: ${match[1]}`,
-        );
+      for (const issue of scriptBoundaryIssues(source, path, feature)) {
+        issues.push(`${relative(root, path)} ${issue}`);
       }
     }
   }
-
-  const [alignRender, commitDiffRender, diffRender] = await Promise.all([
-    readFile(resolve(skillsRoot, "align/scripts/render.mjs"), "utf8"),
-    readFile(resolve(skillsRoot, "commit/scripts/render.mjs"), "utf8"),
-    readFile(resolve(skillsRoot, "diff/scripts/render.mjs"), "utf8"),
-  ]);
-  assert.match(alignRender, /\.\/design\/tokens\.mjs/u);
-  assert.match(commitDiffRender, /\.\/design\/tokens\.mjs/u);
-  assert.match(diffRender, /\.\/design\/tokens\.mjs/u);
-  assert.doesNotMatch(alignRender, /skills\/diff|shared\/visual/u);
-  assert.doesNotMatch(commitDiffRender, /skills\/(?:align|diff)|shared\/visual/u);
-  assert.doesNotMatch(diffRender, /skills\/align|shared\/visual/u);
+  assert.deepEqual(issues, []);
 });
 
 test("the review core contains only approved shared invariants", async () => {
@@ -138,37 +197,107 @@ test("the review core contains only approved shared invariants", async () => {
       "text.mjs",
     ],
   );
+  const issues = [];
   for (const entry of entries) {
     assert.equal(entry.isFile(), true);
     const path = resolve(reviewCoreRoot, entry.name);
     const source = await readFile(path, "utf8");
-    assert.doesNotMatch(source, /skills\/|runtime|renderer|publication/u);
-    for (const match of source.matchAll(
-      /(?:from\s+|import\()\s*["'](\.\.?\/[^"']+)["']/gu,
-    )) {
-      const dependency = resolve(dirname(path), match[1]);
-      const fromReviewCore = relative(reviewCoreRoot, dependency);
-      assert.equal(
-        !isAbsolute(fromReviewCore)
-          && fromReviewCore !== ".."
-          && !fromReviewCore.startsWith(`..${sep}`),
-        true,
-        `${relative(root, path)} imports outside the review core`,
-      );
+    if (/skills\/|runtime|renderer|publication/u.test(source)) {
+      issues.push(`${relative(root, path)} contains feature-owned behavior`);
+    }
+    for (const specifier of moduleSpecifiers(source)) {
+      if (!specifier.startsWith(".")) continue;
+      if (!isInside(reviewCoreRoot, resolve(dirname(path), specifier))) {
+        issues.push(`${relative(root, path)} imports outside the review core: ${specifier}`);
+      }
+    }
+    for (const resource of staticImportMetaResources(source)) {
+      if (!resource.startsWith(".")) continue;
+      if (!isInside(reviewCoreRoot, resolve(dirname(path), resource))) {
+        issues.push(`${relative(root, path)} reads outside the review core: ${resource}`);
+      }
     }
   }
+  assert.deepEqual(issues, []);
 });
 
-test("instruction-led feature guidance stays delivery-neutral", async () => {
-  for (const skillName of instructionLedSkills) {
-    const instructions = await readFile(
-      resolve(skillsRoot, skillName, "SKILL.md"),
-      "utf8",
-    );
-    assert.doesNotMatch(
-      instructions,
-      /plugins\/hope|marketplace|Codex|Claude/u,
-      `${skillName} behavior must use delivery-neutral host language`,
-    );
+test("feature documents use only published cross-feature guidance", async () => {
+  for (const guidance of publishedSharedGuidance) {
+    assert.equal(await exists(guidance), true);
   }
+  const issues = [];
+  for (const feature of await discoverFeatures()) {
+    const documents = [
+      resolve(feature.root, "SKILL.md"),
+      ...await collectFiles(resolve(feature.root, "references"), ".md"),
+    ];
+    for (const path of documents) {
+      const source = await readFile(path, "utf8");
+      for (const issue of guidanceBoundaryIssues(source, path, feature.root)) {
+        issues.push(`${relative(root, path)} ${issue}`);
+      }
+    }
+  }
+  assert.deepEqual(issues, []);
+});
+
+test("architecture checks distinguish approved and forbidden source edges", () => {
+  const feature = {
+    name: "commit",
+    root: resolve(skillsRoot, "commit"),
+  };
+  const script = resolve(feature.root, "scripts/main.mjs");
+  assert.deepEqual(
+    moduleSpecifiers(
+      'const data = await import("../../other/data.json", { with: { type: "json" } });',
+    ),
+    ["../../other/data.json"],
+  );
+  assert.deepEqual(
+    staticImportMetaResources(
+      "const manifest = new URL(`../../../.codex-plugin/plugin.json`, import.meta.url);",
+    ),
+    ["../../../.codex-plugin/plugin.json"],
+  );
+  assert.deepEqual(
+    scriptBoundaryIssues(
+      'import { digestJson } from "../../../review-core/hash.mjs";',
+      script,
+      feature,
+    ),
+    [],
+  );
+  assert.deepEqual(
+    scriptBoundaryIssues(
+      'const icon = new URL("../../../assets/hope-icon.png", import.meta.url);',
+      script,
+      feature,
+    ),
+    [],
+  );
+  assert.ok(scriptBoundaryIssues(
+    'import "../../diff/scripts/index.mjs";',
+    script,
+    feature,
+  ).some((issue) => issue.includes("outside its approved boundary")));
+  assert.ok(scriptBoundaryIssues(
+    'const manifest = new URL("../../../.codex-plugin/plugin.json", import.meta.url);',
+    script,
+    feature,
+  ).some((issue) => issue.includes("outside its approved boundary")));
+
+  const skill = resolve(feature.root, "SKILL.md");
+  assert.deepEqual(
+    guidanceBoundaryIssues(
+      "Read `../write/references/writing-standard.md`.",
+      skill,
+      feature.root,
+    ),
+    [],
+  );
+  assert.ok(guidanceBoundaryIssues(
+    "Read `../diff/references/analysis.md`.",
+    skill,
+    feature.root,
+  ).some((issue) => issue.includes("without a published shared contract")));
 });

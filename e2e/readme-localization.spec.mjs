@@ -150,6 +150,7 @@ test("Align and Diff share product-bar and numbered contents geometry", async ({
       margin: "24px",
       numberFontSize: "18px",
       padding: "16px",
+      titleLeft: 40,
     });
     await expect(page.locator(".display-controls > .locale-menu")).toHaveCount(1);
     await expect(page.locator(".display-controls > .theme-button")).toHaveCount(1);

@@ -8,7 +8,7 @@
       "name": "hope",
       "source": {
         "source": "local",
-        "path": "./plugins/hope-commit"
+        "path": "./plugins/hope"
       },
       "policy": {
         "installation": "AVAILABLE",

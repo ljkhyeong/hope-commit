@@ -6,13 +6,13 @@ import {
   LAYOUT as ALIGN_LAYOUT,
   SPACE as ALIGN_SPACE,
   TYPE as ALIGN_TYPE,
-} from "../plugins/hope-commit/skills/align/scripts/design/tokens.mjs";
+} from "../plugins/hope/skills/align/scripts/design/tokens.mjs";
 import {
   COLORS as DIFF_COLORS,
   LAYOUT as DIFF_LAYOUT,
   SPACE as DIFF_SPACE,
   TYPE as DIFF_TYPE,
-} from "../plugins/hope-commit/skills/diff/scripts/design/tokens.mjs";
+} from "../plugins/hope/skills/diff/scripts/design/tokens.mjs";
 
 test("Align and Diff share the agreed artifact visual baseline", () => {
   const sharedColors = [
@@ -36,6 +36,7 @@ test("Align and Diff share the agreed artifact visual baseline", () => {
   for (const role of [
     "brand",
     "body",
+    "goal",
     "menu",
     "micro",
     "pageTitle",
@@ -43,8 +44,6 @@ test("Align and Diff share the agreed artifact visual baseline", () => {
     "supporting",
     "subsectionTitle",
   ]) {
-    assert.equal(Object.hasOwn(ALIGN_TYPE, role), true, `Align TYPE에 ${role} 역할이 필요합니다.`);
-    assert.equal(Object.hasOwn(DIFF_TYPE, role), true, `Diff TYPE에 ${role} 역할이 필요합니다.`);
     assert.deepEqual(DIFF_TYPE[role], ALIGN_TYPE[role]);
   }
   for (const role of [

@@ -4,9 +4,10 @@ Before changing Hope:
 
 - Read [PRINCIPLES.md](PRINCIPLES.md).
 - Follow the workflow in [CONTRIBUTING.md](CONTRIBUTING.md).
-- Read [docs/architecture.md](docs/architecture.md) before changing a main
-  folder, build boundary, or delivery structure.
-- Read the matching `plugins/hope-commit/skills/<feature>/SKILL.md` before changing
+- Read [docs/architecture.md](docs/architecture.md) before changing
+  implementation dependencies, shared code or assets, a main folder, a build
+  boundary, or delivery structure.
+- Read the matching `plugins/hope/skills/<feature>/SKILL.md` before changing
   feature behavior.
 - Read [docs/design.md](docs/design.md) before changing a Hope GUI.
 
@@ -15,7 +16,7 @@ Before changing Hope:
 Use the Hope Write Skill whenever clearer language would improve the work.
 
 Write applies the shared
-[writing standard](plugins/hope-commit/skills/write/references/writing-standard.md)
+[writing standard](plugins/hope/skills/write/references/writing-standard.md)
 inside the active task.
 
 When implementation or another Skill owns the task, Write remains

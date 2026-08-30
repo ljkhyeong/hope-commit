@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { redactionKind } from "../plugins/hope-commit/review-core/redact.mjs";
+import { redactionKind } from "../plugins/hope/review-core/redact.mjs";
 
 for (const path of [
   ".git-credentials",

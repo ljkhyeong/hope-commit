@@ -19,7 +19,7 @@ const packageJson = await readJson("package.json");
 const currentVersion = packageJson.version;
 
 await Promise.all(pluginPackageFiles.map(
-  async (path) => await readBytes(`plugins/hope-commit/${path}`),
+  async (path) => await readBytes(`plugins/hope/${path}`),
 ));
 
 for (const entry of pluginBuildEntries) {
@@ -39,8 +39,8 @@ const [
   packageLock,
 ] =
   await Promise.all([
-    readJson("plugins/hope-commit/.codex-plugin/plugin.json"),
-    readJson("plugins/hope-commit/.claude-plugin/plugin.json"),
+    readJson("plugins/hope/.codex-plugin/plugin.json"),
+    readJson("plugins/hope/.claude-plugin/plugin.json"),
     readJson(".agents/plugins/marketplace.json"),
     readJson(".claude-plugin/marketplace.json"),
     readJson("package-lock.json"),
@@ -53,7 +53,6 @@ assert.equal(packageJson.bin, undefined);
 assert.equal(packageJson.scripts.hope, undefined);
 assert.equal(codexPlugin.name, "hope");
 assert.equal(codexPlugin.version, currentVersion);
-assert.equal(codexPlugin.interface.defaultPrompt.length, 3);
 assert.ok(
   codexPlugin.interface.defaultPrompt.every((prompt) => prompt.includes("$hope:")),
   "Codex 기본 프롬프트가 Hope 스킬 네임스페이스를 사용해야 합니다.",
@@ -61,6 +60,10 @@ assert.ok(
 assert.ok(
   codexPlugin.interface.defaultPrompt.some((prompt) => prompt.includes("$hope:commit")),
   "Codex 기본 프롬프트에 커밋 스킬이 포함되어야 합니다.",
+);
+assert.ok(
+  codexPlugin.interface.defaultPrompt.some((prompt) => prompt.includes("$hope:sweep")),
+  "Codex 기본 프롬프트에 명시적 코드 정리 스킬이 포함되어야 합니다.",
 );
 assert.equal(claudePlugin.name, "hope");
 assert.equal(claudePlugin.version, currentVersion);
@@ -83,8 +86,8 @@ const skillAgentPaths = pluginPackageFiles.filter(
 for (const path of skillAgentPaths) {
   const skillName = path.split("/")[1];
   const [metadata, instructions] = await Promise.all([
-    read(`plugins/hope-commit/${path}`),
-    read(`plugins/hope-commit/skills/${skillName}/SKILL.md`),
+    read(`plugins/hope/${path}`),
+    read(`plugins/hope/skills/${skillName}/SKILL.md`),
   ]);
   assert.match(
     instructions,
@@ -103,12 +106,12 @@ for (const path of skillAgentPaths) {
   );
 }
 assert.ok(codexMarketplace.plugins.some(
-  (entry) => entry.name === "hope" && entry.source.path === "./plugins/hope-commit",
+  (entry) => entry.name === "hope" && entry.source.path === "./plugins/hope",
 ));
 const claudeMarketplaceEntry = claudeMarketplace.plugins.find(
   (entry) => entry.name === "hope",
 );
-assert.equal(claudeMarketplaceEntry.source, "./plugins/hope-commit");
+assert.equal(claudeMarketplaceEntry.source, "./plugins/hope");
 assert.equal(claudeMarketplaceEntry.version, undefined);
 assert.equal(packageJson.scripts["plugin:dev:install"], "node tools/install-plugin-dev.mjs");
 assert.equal(packageJson.scripts["check:title"], "node tools/check-change-title.mjs");

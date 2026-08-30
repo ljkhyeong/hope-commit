@@ -6,20 +6,20 @@ import test, { after } from "node:test";
 import {
   checkpointDiffWindow,
   readDiffLedger,
-} from "../plugins/hope-commit/skills/diff/scripts/index.mjs";
+} from "../plugins/hope/skills/diff/scripts/index.mjs";
 import {
   createDiffCheckpoint,
   diffLedgerView,
-} from "../plugins/hope-commit/skills/diff/scripts/checkpoint.mjs";
-import { LIMITS } from "../plugins/hope-commit/skills/diff/scripts/constants.mjs";
-import { digestJson } from "../plugins/hope-commit/review-core/hash.mjs";
+} from "../plugins/hope/skills/diff/scripts/checkpoint.mjs";
+import { LIMITS } from "../plugins/hope/skills/diff/scripts/constants.mjs";
+import { digestJson } from "../plugins/hope/review-core/hash.mjs";
 import {
   checkpointDiffRunWindow,
   createDiffRun,
   inspectDiffRunWindow,
   loadDiffRun,
   removeDiffRun,
-} from "../plugins/hope-commit/skills/diff/scripts/run.mjs";
+} from "../plugins/hope/skills/diff/scripts/run.mjs";
 import { makeSnapshot } from "../test-support/diff-fixture.mjs";
 import {
   registerTestTemporaryDirectoryCleanup,
@@ -185,6 +185,11 @@ test("inspection windows persist grounded memory before advancing", async (conte
   );
   assert.equal(ledger.evidenceExcerpts[0].sourceId, grounded.sourceId);
   assert.equal(ledger.evidenceExcerpts[0].startLine, grounded.line);
+  assert.equal(ledger.next.kind, "required");
+  assert.equal(
+    ledger.next.transition.command ?? ledger.next.transition.kind,
+    ledger.page < ledger.totalPages ? "ledger" : "write-analysis",
+  );
 });
 
 test("a window checkpoint cannot cite source text from another page", async (context) => {

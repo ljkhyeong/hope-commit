@@ -13,14 +13,14 @@ const fonts = Object.freeze({
 test("bundled fonts match the renamed OFL-reviewed files", async () => {
   const source = await readFile(
     new URL(
-      "../plugins/hope-commit/assets/fonts/SOURCE.md",
+      "../plugins/hope/assets/fonts/SOURCE.md",
       import.meta.url,
     ),
     "utf8",
   );
   for (const [filename, expected] of Object.entries(fonts)) {
     const bytes = await readFile(new URL(
-      `../plugins/hope-commit/assets/fonts/${filename}`,
+      `../plugins/hope/assets/fonts/${filename}`,
       import.meta.url,
     ));
     const actual = createHash("sha256").update(bytes).digest("hex");

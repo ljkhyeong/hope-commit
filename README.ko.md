@@ -1,6 +1,6 @@
 <p align="center">
   <img
-    src="plugins/hope-commit/assets/hope-protected-light.png"
+    src="plugins/hope/assets/hope-protected-light.png"
     width="128"
     alt="Hope 프로텍티드 라이트 아이콘"
   >
@@ -10,7 +10,8 @@
 
 <p align="center">
   <strong>
-    하나의 Git 커밋을 근거가 연결된 오프라인 HTML로 검토하면서 원본 Hope 기능도 함께 제공합니다.
+    변경 불가능한 Git 커밋 하나를 근거가 연결된 오프라인 HTML로 검토하면서
+    원본 Hope 기능도 함께 제공합니다.
   </strong>
 </p>
 
@@ -19,9 +20,10 @@
 <br>
 
 > [!NOTE]
-> Hope Commit은 SeungIl이 만든 [Hope](https://github.com/dkstm95/hope)의
-> 비공식 포크입니다. 원본 Git 이력과 MIT 라이선스를 보존하며, 원본 프로젝트가
-> 이 포크를 공식적으로 보증하거나 유지보수하지는 않습니다.
+> Hope Commit은 SeungIl이 만든 [Hope](https://github.com/dkstm95/hope)
+> 6.0.0을 기준으로 만든 비공식 포크입니다. 원본 Git 이력과 MIT 라이선스를
+> 보존하며, 원본 프로젝트가 이 포크를 공식적으로 보증하거나 유지보수하지는
+> 않습니다.
 
 ## 기능
 
@@ -32,10 +34,15 @@ HTML 리뷰를 만듭니다. 기본적으로 첫 번째 부모와 비교하고, 
 직접 선택할 수 있으며, 루트 커밋은 Git의 빈 트리와 비교합니다.
 
 수집기는 작업 디렉터리가 아니라 커밋된 Git 객체를 읽습니다. 따라서 staged,
-unstaged, untracked 파일은 캡처한 리뷰에 영향을 주지 않습니다. Hope Diff의 입력
-크기 제한, 비밀정보 제외, 근거 검증, 임시 상태 소유권, 원자적 발행 보장도 유지합니다.
+unstaged, untracked 파일은 캡처한 리뷰에 영향을 주지 않습니다. 입력 크기 제한,
+비밀정보 제외, 근거 검증, 임시 상태 소유권, 원자적 발행 보장도 유지합니다.
 
-요청 예시:
+> [!IMPORTANT]
+> 오프라인은 생성된 HTML을 네트워크 없이 읽을 수 있다는 뜻입니다. 리뷰를 만드는
+> 동안 코드와 커밋 정보는 사용 중인 AI 서비스에서 처리될 수 있습니다. 비공개 코드를
+> 검토하기 전에 해당 서비스의 데이터 정책과 조직의 코드 반출 기준을 확인하세요.
+
+Commit Diff는 명시적으로 호출할 때만 실행합니다.
 
 ```text
 이 저장소의 커밋 f6363ced를 $hope:commit으로 검토하고 한국어 HTML을 만들어줘.
@@ -45,31 +52,32 @@ unstaged, untracked 파일은 캡처한 리뷰에 영향을 주지 않습니다.
 
 ### 🤝 Align — 구현 전 작업 이해를 맞추고 `의도 부채`를 방지합니다
 
-Align은 확인 가능한 근거로 검토하고, 결과를 바꿀 수 있는 중요한 누락·모순·위험·검증되지 않은 가정·예외·더 단순한 대안 등에 대해 인터뷰합니다.
+Align은 확인 가능한 근거로 요청을 검토하고, 결과를 바꿀 수 있는 모든 중요한 의도 결정을 구조화한 뒤 의존 관계에 맞춰 라운드별로 인터뷰합니다. 답변할 때마다 남은 질문을 다시 계산하며, 중요한 결정이 하나도 남지 않고 전체 의도를 되가르친 내용에 사용자가 확인해야 끝납니다.
 
-후속 작업이나 검토에서 다시 확인할 기록이 필요하거나 사용자가 산출물을 요청하면,
-Align은 프로젝트 안에 하나의 HTML 문서를 만듭니다. 현재 세션에서 계속 진행할
-작고 명확한 일은 파일을 만들지 않고 합의를 대화에 남길 수 있습니다.
+후속 작업이나 검토에서 합의한 의도를 다시 확인할 기록이 필요하거나 사용자가
+산출물을 요청하면, Align은 프로젝트 안에 하나의 HTML 기록을 만듭니다. 현재
+세션에서 계속 진행할 작고 명확한 일은 파일을 만들지 않고 합의를 대화에 남길 수
+있습니다.
 
-이 문서에는 합의된 목표 하나와 완료 기준이 담깁니다.
-각 완료 기준에는 확인 방법과 AI와 사용자 중 누가 판단할지가 포함됩니다.
-중요한 변경은 동일 파일의 새 버전으로 남기며, 이 문서를 구현 계약으로 사용합니다.
+이 기록에는 합의한 목표 하나, 관찰 가능한 의도 충족 조건, 제외한 작업, 필요한
+사용자 흐름이 담깁니다. 내부 설계, 구현 세부 사항, 현재 구현 상태, 완료 결과는 담지
+않습니다. 후속 작업은 의도의 근거로 참고할 수 있지만 구현 계약이나 현재 시스템
+명세로 취급하지 않습니다.
 
-첨부 자료가 없는 중요한 UI 작업에서는 프로젝트를 먼저 살피고, 필요하면 웹 서치로 조사해 2~3개의 이미지 시안을 제시합니다.
+중요한 시각 선택을 대화만으로 정직하게 결정할 수 없을 때만 프로젝트를 먼저 살피고, 그 선택을 위한 증거로 2~3개의 이미지 시안을 제시합니다. 모든 UI 작업을 디자인 탐색으로 만들지는 않습니다.
 
 > [!IMPORTANT]
 > 생성된 Align 문서는 프로젝트 문서입니다. 사용자가 제외하지 않는 한 관련
 > 변경과 함께 버전 관리에 포함합니다.
 
-**전체 HTML 예시:** [출처 충돌·변경·취소와 확인 책임을 합의한 한국어 팬 일정 Align 문서의 파일 페이지를 엽니다.](docs/alignments/rescene-fan-calendar.ko.html)
-파일 페이지에서 HTML을 내려받은 뒤 로컬에서 열면 상호작용을 사용할 수 있습니다.
+**전체 HTML 예시:** [출처 충돌·변경·취소와 판단 책임을 합의한 한국어 팬 일정 Align 기록을 엽니다.](docs/alignments/rescene-fan-calendar.ko.html)
 
-![신뢰 가능한 팬 일정의 목표, 완료 기준, 경계를 보여 주는 한국어 Hope Align 예시](assets/readme/hope-align-ko.png)
+![신뢰 가능한 팬 일정의 목표, 의도 충족 조건, 경계를 보여 주는 한국어 Hope Align 예시](assets/readme/hope-align-ko.png)
 
 <details>
 <summary>Align 세부 이미지 보기</summary>
 
-| 비교한 UI 방향 | 출처와 데이터 운영 결정 |
+| 비교한 디자인 시안 | 출처와 데이터 운영 결정 |
 | --- | --- |
 | [![한국어 Align 문서에서 비교한 신뢰 가능한 팬 일정 UI 두 가지](assets/readme/hope-align-directions-ko.png)](assets/readme/hope-align-directions-ko.png) | [![한국어 Align 문서의 출처 우선순위, 충돌, 최신성, 취소 결정](assets/readme/hope-align-decisions-ko.png)](assets/readme/hope-align-decisions-ko.png) |
 
@@ -95,8 +103,7 @@ Diff는 하나의 HTML 문서를 만들어 코드보다 동작을 먼저 설명�
 아래 이미지는 [Ky PR #867](https://github.com/sindresorhus/ky/pull/867)을 바탕으로
 고정된 한국어 Diff 예시에서 만들었습니다.
 
-**전체 HTML 예시:** [Ky PR #867의 재시도 설정을 마이크로월드와 퀴즈로 설명한 한국어 Diff 결과물의 파일 페이지를 엽니다.](docs/diffs/ky-867-retry-extend.ko.html)
-파일 페이지에서 HTML을 내려받은 뒤 로컬에서 열면 상호작용을 사용할 수 있습니다.
+**전체 HTML 예시:** [Ky PR #867의 재시도 설정을 마이크로월드와 퀴즈로 설명한 한국어 Diff 결과물을 엽니다.](docs/diffs/ky-867-retry-extend.ko.html)
 
 ![Ky PR 867의 목표, 이전과 이후 동작, 검증 항목을 보여 주는 한국어 Hope Diff 예시](assets/readme/hope-diff-ko.png)
 
@@ -117,38 +124,39 @@ Diff는 하나의 HTML 문서를 만들어 코드보다 동작을 먼저 설명�
 
 Red가 찾고, Blue가 검증하고, 메인 에이전트가 판정합니다.
 
-Red 리뷰어들은 서로 독립적으로 서로 다른 중요한 위험을 파고듭니다. 영향이 크거나
-실질적으로 불확실한 지적 사항에는 새로운 Blue 검증 에이전트가 붙습니다. Blue는
-Red가 제출한 지적 사항과 범위 안의 근거만 보고 반증을 시도하며, 과장되거나 빠진
-맥락이 있는지 확인합니다. 결과물을 변호하거나 최종 판정을 내리지 않습니다.
+Red 리뷰어들은 서로 독립적으로 서로 다른 중요한 위험을 파고듭니다. 우선순위가
+높거나 광범위하고 되돌리기 어려운 조치를 제안하거나 실질적으로 불확실한 모든 지적
+사항에는 새로운 Blue 검증 에이전트가 붙습니다. Blue는 봉인된 지적 사항과 범위 안의
+근거를 바탕으로 문제, 영향, 범위, 제안 조치를 각각 반증합니다.
 
-메인 에이전트는 최종 판정을 유지하고 근거로 뒷받침되는 지적 사항만 보고합니다.
+메인 에이전트는 각 후보의 최종 판정과 실행 가능한 후보의 최종 우선순위를 기록하고,
+근거가 뒷받침하는 수준을 넘지 않는 지적 사항만 실행 항목으로 보고합니다.
 
 > [!TIP]
 > 일상적인 실행 규모를 줄이려면 Hope에 Red 리뷰어 수를 제한해 달라고 요청하세요.
-> 규모만으로 Blue를 추가하지는 않지만, 영향이 크거나 실질적으로 불확실한 지적
-> 사항에는 여전히 Blue가 붙습니다.
-
----
-
-### ✨ Polish — 구현된 결과물을 다듬습니다
-
-서로 독립된 검토 에이전트가 가치 있는 개선을 찾습니다.
-
-코드에서는 기존 헬퍼 재사용, 단순성, 효율, 추상화 수준 등을 확인합니다.
-
-메인 에이전트는 결과를 판정하고, 적용할 수 있는 변경만 반영하고 검증합니다.
-
-버그 탐색, 기능 개발, 마이그레이션, 광범위한 유지보수는 하지 않습니다.
+> 규모만으로 Blue를 추가하지는 않지만, 우선순위가 높거나 광범위한 조치를 제안하거나
+> 실질적으로 불확실한 지적 사항에는 반드시 Blue가 붙습니다.
 
 ---
 
 ### 🧹 Sweep — 코드베이스를 청소합니다
 
-코드베이스를 읽기 전용으로 검토하며,
-깨진 참조, 오래된 코드, 근거 없는 추상화, 검증 공백, 의존성·라이선스 위험, 전달 과정의 낭비, 불분명한 소유권 등이 대상입니다.
+Sweep은 명시적으로 호출할 때만 시작하며, 근거가 있고 기존 동작을 유지하는
+정리를 바로 적용합니다.
 
-검토 결과 목록에서 후보를 선택하면 작업을 시작합니다.
+사용자가 저장소 안의 더 좁은 범위를 지정하지 않으면 현재 저장소 전체를
+대상으로 합니다.
+
+다음 항목을 정리합니다.
+
+- 데드 코드와 그 코드만을 위한 테스트, 문서, 설정, 생성 단계, 자산
+- 중복 구현, 불필요한 작업과 간접 계층
+- 부족하거나 과도한 추상화와 잘못된 책임 경계
+- 코드와 맞지 않는 문서, 주석, 예시, 설정
+- 안전한 리팩터링에 필요한 최소한의 테스트와 검사
+
+버그 수정, 동작이나 공개 계약 변경, 제품 결정, 불확실한 제거는 Sweep의
+범위에 포함하지 않습니다.
 
 ---
 
@@ -166,7 +174,7 @@ Write의 공통 기준은 조지 오웰의
 
 다음 항목들이 필요합니다.
 - Node.js 22 이상
-- PR 기반 Diff를 사용하려면 인증된 [GitHub CLI](https://cli.github.com/)가 필요합니다. 필요하다면 먼저 `gh auth login`을 실행하세요.
+- Diff를 사용하려면 인증된 [GitHub CLI](https://cli.github.com/)가 필요합니다. 필요하다면 먼저 `gh auth login`을 실행하세요.
 
 > [!TIP]
 > 가장 간단한 설치 방법은 AI에게 다음과 같이 요청하는 것입니다.
@@ -176,15 +184,9 @@ Write의 공통 기준은 조지 오웰의
 > 저장소의 README에 따라 설치하고, 다시 시작해야 한다면 알려 주세요.
 > ```
 
-직접 설치하려면 아래에서 현재 상황에 맞는 절차를 따르세요.
+직접 설치하려면 사용 중인 도구의 명령을 실행하세요.
 
-Hope Commit은 원본 Hope와 동일한 `$hope:*` Skill 네임스페이스를 사용합니다.
-두 플러그인을 동시에 활성화하지 마세요.
-
-### 처음 설치
-
-다른 Hope 플러그인이 설치되지 않은 환경에서는 다음 명령을 실행하세요.
-
+예시:
 ```bash
 # Codex
 codex plugin marketplace add ljkhyeong/hope-commit
@@ -196,55 +198,8 @@ codex plugin add hope@hope-commit
 claude plugin marketplace add ljkhyeong/hope-commit
 claude plugin install hope@hope-commit
 ```
-
-설치가 끝나면 Codex에서는 새 작업을 시작하세요. Claude Code에서는 새 세션을
-시작하거나 `/reload-plugins`를 실행하세요.
-
-### 원본 Hope에서 전환
-
-원본 `hope@hope`를 사용 중이면 기존 설치를 제거한 뒤 Hope Commit을 설치하세요.
-
-```bash
-# Codex
-codex plugin remove hope@hope
-codex plugin marketplace add ljkhyeong/hope-commit
-codex plugin add hope@hope-commit
-```
-
-```bash
-# Claude Code
-claude plugin uninstall hope@hope
-claude plugin marketplace add ljkhyeong/hope-commit
-claude plugin install hope@hope-commit
-```
-
-전환이 끝나면 Codex에서는 새 작업을 시작하세요. Claude Code에서는 새 세션을
-시작하거나 `/reload-plugins`를 실행하세요.
-
-### Hope Commit 3.x에서 4.0으로 업그레이드
-
-3.x의 `hope-commit@hope-commit`을 먼저 제거하세요. 그다음 기존
-`hope-commit` 마켓플레이스를 갱신하고 새 `hope@hope-commit`을 설치하세요.
-
-```bash
-# Codex
-codex plugin remove hope-commit@hope-commit
-codex plugin marketplace upgrade hope-commit
-codex plugin add hope@hope-commit
-```
-
-```bash
-# Claude Code
-claude plugin uninstall hope-commit@hope-commit
-claude plugin marketplace update hope-commit
-claude plugin install hope@hope-commit
-```
-
-업그레이드가 끝나면 Codex에서는 새 작업을 시작하세요. Claude Code에서는 새
-세션을 시작하거나 `/reload-plugins`를 실행하세요.
 
 ## 라이선스
 
-[MIT](LICENSE). 원본 프로젝트 출처는 [NOTICE](NOTICE), 포함된 폰트의 고지는
-[`plugins/hope-commit/assets/fonts/`](plugins/hope-commit/assets/fonts/)에서
+[MIT](LICENSE)을 적용합니다. 원본 Hope 표기와 포크 상태는 [NOTICE](NOTICE)에서
 확인할 수 있습니다.

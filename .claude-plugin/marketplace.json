@@ -1,14 +1,14 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
   "name": "hope-commit",
-  "description": "Hope Commit reviews local Git commits as grounded offline HTML and retains Hope's original capabilities.",
+  "description": "Hope Commit reviews immutable local Git commits as grounded offline HTML and retains Hope's original capabilities.",
   "owner": {
     "name": "ljkhyeong"
   },
   "plugins": [
     {
       "name": "hope",
-      "source": "./plugins/hope-commit",
+      "source": "./plugins/hope",
       "description": "Adds local Git commit reviews as evidence-linked offline HTML while retaining Hope's original skills. Requires Node.js 22 or newer.",
       "author": {
         "name": "ljkhyeong"
@@ -16,7 +16,7 @@
       "homepage": "https://github.com/ljkhyeong/hope-commit#readme",
       "repository": "https://github.com/ljkhyeong/hope-commit",
       "license": "MIT",
-      "keywords": ["commit", "git", "alignment", "maintenance", "review", "diff", "pull-request", "writing"],
+      "keywords": ["commit", "git", "alignment", "sweep", "maintenance", "review", "diff", "pull-request", "writing"],
       "category": "development"
     }
   ]

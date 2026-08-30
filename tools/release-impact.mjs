@@ -167,12 +167,30 @@ export function packageDigest(entries) {
   })));
 }
 
+export function selectPackageRoot(pluginDirectories) {
+  const supportedDirectories = new Set(["hope", "hope-commit"]);
+  const matches = pluginDirectories.filter((directory) => (
+    supportedDirectories.has(directory)
+  ));
+  if (matches.length !== 1) {
+    throw new Error(
+      `Expected one supported plugin package root, found: ${matches.join(", ") || "none"}`,
+    );
+  }
+  return `plugins/${matches[0]}`;
+}
+
 export function packageDigestAt(reference) {
   const commit = resolveCommit(reference);
   const packageFiles = parsePackageFileList(
     readGitFile(commit, "tools/plugin-package-files.txt").toString("utf8"),
   );
-  const pluginRoot = "plugins/hope-commit";
+  const pluginRoot = selectPackageRoot(git([
+    "ls-tree",
+    "-d",
+    "--name-only",
+    `${commit}:plugins`,
+  ]).split(/\r?\n/u).filter(Boolean));
   const tree = new Map(git(["ls-tree", "-r", commit, "--", pluginRoot])
     .split(/\r?\n/u)
     .filter(Boolean)
@@ -217,7 +235,7 @@ export function packageDigestFromWorktree() {
   const packageFiles = parsePackageFileList(
     readFileSync(resolve(root, "tools/plugin-package-files.txt"), "utf8"),
   );
-  return packageDigestFromDirectory(resolve(root, "plugins/hope-commit"), packageFiles);
+  return packageDigestFromDirectory(resolve(root, "plugins/hope"), packageFiles);
 }
 
 export function versionAt(reference) {

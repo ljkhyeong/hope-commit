@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { digestJson } from "../plugins/hope-commit/review-core/hash.mjs";
-import { validateAnalysis } from "../plugins/hope-commit/skills/diff/scripts/validate.mjs";
+import { digestJson } from "../plugins/hope/review-core/hash.mjs";
+import { validateAnalysis } from "../plugins/hope/skills/diff/scripts/validate.mjs";
 import {
   makeAnalysis,
   makeSnapshot,
@@ -184,6 +184,27 @@ test("the main explanation keeps at most four focused details", () => {
   assert.throws(
     () => validateAnalysis(analysis, snapshot, { runId }),
     /coreChange\.details has too many items/u,
+  );
+});
+
+test("analysis rejects exact duplicate sibling claims", () => {
+  const snapshot = makeSnapshot();
+  const duplicateDetail = makeAnalysis(snapshot, runId);
+  duplicateDetail.coreChange.details.push(
+    structuredClone(duplicateDetail.coreChange.details[0]),
+  );
+  assert.throws(
+    () => validateAnalysis(duplicateDetail, snapshot, { runId }),
+    /coreChange\.details\[1\] duplicates coreChange\.details\[0\]/u,
+  );
+
+  const duplicateCodeStep = makeAnalysis(snapshot, runId);
+  duplicateCodeStep.codeSteps.push(
+    structuredClone(duplicateCodeStep.codeSteps[0]),
+  );
+  assert.throws(
+    () => validateAnalysis(duplicateCodeStep, snapshot, { runId }),
+    /codeSteps\[1\] duplicates codeSteps\[0\]/u,
   );
 });
 
@@ -929,7 +950,23 @@ test("overlapping evidence ranges count every rendered code line", () => {
 
   assert.throws(
     () => validateAnalysis(analysis, budgetSnapshot, { runId }),
-    /more than 600 code evidence lines/u,
+    (error) => {
+      const issue = error.issues.find(
+        (item) => item.code === "RESOURCE_CODE_EVIDENCE_LINES",
+      );
+      assert.ok(issue);
+      assert.match(issue.message, /renders \d+ code evidence lines; limit is 600/u);
+      assert.equal(issue.details.limit, 600);
+      assert.equal(issue.details.target, 480);
+      assert.ok(issue.details.actual > issue.details.limit);
+      assert.ok(issue.details.byField.find(
+        (item) => item.field === "codeSteps" && item.lines >= 864,
+      ));
+      assert.equal(issue.details.largestRanges[0].lines, 24);
+      assert.equal(issue.details.largestRanges[0].field, "codeSteps");
+      assert.ok(issue.details.overlappingRanges.length > 0);
+      return true;
+    },
   );
 });
 
@@ -993,6 +1030,29 @@ test("behavior accepts a grounded, exhaustive declarative microworld", () => {
   assert.equal(Object.isFrozen(validated.behavior.microworld.controls), true);
   assert.equal(Object.isFrozen(validated.behavior.microworld.scenarios[0].when), true);
   assert.ok(validated.resources.authoredProseBytes > 842);
+});
+
+test("microworld scenarios name unchanged traces without copying them", () => {
+  const snapshot = makeSnapshot();
+  const analysis = makeAnalysis(snapshot, runId);
+  addTeachingBehavior(analysis);
+  const scenario = analysis.behavior.microworld.scenarios[0];
+  scenario.after = "unchanged";
+
+  const validated = validateAnalysis(analysis, snapshot, { runId });
+  const normalized = validated.behavior.microworld.scenarios[0];
+  assert.equal(normalized.unchanged, true);
+  assert.equal(normalized.after, normalized.before);
+
+  const repeated = makeAnalysis(snapshot, runId);
+  addTeachingBehavior(repeated);
+  repeated.behavior.microworld.scenarios[0].after = structuredClone(
+    repeated.behavior.microworld.scenarios[0].before,
+  );
+  assert.throws(
+    () => validateAnalysis(repeated, snapshot, { runId }),
+    /after repeats before; use "unchanged"/u,
+  );
 });
 
 test("visual validation rejects malformed structure and ungrounded claims", () => {

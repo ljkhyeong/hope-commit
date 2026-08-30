@@ -5,8 +5,8 @@ import {
   collectGitHubPullRequest,
   parseGitHubPullRequestUrl,
   revalidateGitHubSnapshot,
-} from "../plugins/hope-commit/skills/diff/scripts/github.mjs";
-import { LIMITS } from "../plugins/hope-commit/skills/diff/scripts/constants.mjs";
+} from "../plugins/hope/skills/diff/scripts/github.mjs";
+import { LIMITS } from "../plugins/hope/skills/diff/scripts/constants.mjs";
 
 function response(value) {
   return { stdout: JSON.stringify(value) };
@@ -39,7 +39,7 @@ function fakeGitHub({
   const changedFile = providerFile ?? {
     additions: 1,
     deletions: 1,
-    filename: secretFile ? ".npmrc" : "src/error.js",
+    filename: secretFile ? ".env" : "src/error.js",
     patch: incompletePatch ? undefined : "@@ -1 +1 @@\n-old\n+new",
     status: "modified",
   };

@@ -27,6 +27,7 @@ import {
   packageDigest,
   packageDigestFromDirectory,
   releaseTypeBetween,
+  selectPackageRoot,
   validateReleaseImpact,
 } from "../tools/release-impact.mjs";
 import { chooseReleasePlan } from "../tools/plan-release.mjs";
@@ -41,7 +42,7 @@ import {
 } from "../tools/stage-plugin.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const pluginRoot = resolve(root, "plugins/hope-commit");
+const pluginRoot = resolve(root, "plugins/hope");
 
 async function listFiles(directory, base = directory) {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -254,6 +255,16 @@ test("package impact ignores only manifest versions", () => {
   );
 });
 
+test("package impact reads the plugin root used by each release", () => {
+  assert.equal(selectPackageRoot(["hope"]), "plugins/hope");
+  assert.equal(selectPackageRoot(["hope-commit"]), "plugins/hope-commit");
+  assert.throws(() => selectPackageRoot([]), /found: none/u);
+  assert.throws(
+    () => selectPackageRoot(["hope", "hope-commit"]),
+    /found: hope, hope-commit/u,
+  );
+});
+
 test("package impact reads the current working directory", async (context) => {
   const directory = await mkdtemp(join(tmpdir(), "hope-package-impact-"));
   context.after(async () => await rm(directory, { recursive: true, force: true }));
@@ -372,7 +383,7 @@ test("release planning covers recorded, completed, and interrupted versions", ()
     currentVersion: "4.0.0",
     eventName: "workflow_run",
     previousVersion: "3.1.1",
-    releaseExists: false,
+    releaseState: "missing",
     tagExists: false,
   }), {
     currentTag: "v4.0.0",
@@ -384,7 +395,7 @@ test("release planning covers recorded, completed, and interrupted versions", ()
     currentVersion: "4.0.0",
     eventName: "workflow_run",
     previousVersion: "4.0.0",
-    releaseExists: true,
+    releaseState: "published",
     tagExists: true,
   }), {
     currentTag: "v4.0.0",
@@ -395,7 +406,7 @@ test("release planning covers recorded, completed, and interrupted versions", ()
   assert.deepEqual(chooseReleasePlan({
     currentVersion: "4.0.0",
     eventName: "workflow_dispatch",
-    releaseExists: false,
+    releaseState: "missing",
     tagExists: true,
   }), {
     currentTag: "v4.0.0",
@@ -406,7 +417,7 @@ test("release planning covers recorded, completed, and interrupted versions", ()
   assert.deepEqual(chooseReleasePlan({
     currentVersion: "4.0.0",
     eventName: "workflow_dispatch",
-    releaseExists: false,
+    releaseState: "missing",
     tagExists: false,
   }), {
     currentTag: "v4.0.0",
@@ -421,16 +432,41 @@ test("release planning rejects missing tags and contradictory GitHub state", () 
     currentVersion: "4.0.0",
     eventName: "workflow_run",
     previousVersion: "4.0.0",
-    releaseExists: false,
+    releaseState: "missing",
     tagExists: false,
   }), /태그가 없지만 검증된 커밋은 버전을 변경하지 않았습니다/u);
   assert.throws(() => chooseReleasePlan({
     currentVersion: "4.0.0",
     eventName: "workflow_run",
     previousVersion: "3.1.1",
-    releaseExists: true,
+    releaseState: "published",
     tagExists: false,
   }), /GitHub Release에 대응하는 Git 태그가 없습니다/u);
+});
+
+test("자동·수동 릴리스 모두 미완료 초안을 보존하고 중단한다", () => {
+  for (const eventName of ["workflow_run", "workflow_dispatch"]) {
+    for (const tagExists of [true, false]) {
+      assert.throws(() => chooseReleasePlan({
+        currentVersion: "5.0.0",
+        eventName,
+        previousVersion: "4.0.0",
+        releaseState: "draft",
+        tagExists,
+      }), /v5\.0\.0 미완료 릴리스 초안.*초안을 확인/u);
+    }
+  }
+});
+
+test("릴리스 상태가 없거나 잘못되면 게시 여부를 결정하지 않는다", () => {
+  for (const releaseState of [undefined, "", "unknown"]) {
+    assert.throws(() => chooseReleasePlan({
+      currentVersion: "5.0.0",
+      eventName: "workflow_dispatch",
+      releaseState,
+      tagExists: true,
+    }), /RELEASE_STATE/u);
+  }
 });
 
 test("release planning writes GitHub Actions outputs", async (context) => {
@@ -448,7 +484,7 @@ test("release planning writes GitHub Actions outputs", async (context) => {
         EVENT_NAME: "workflow_run",
         GITHUB_OUTPUT: outputPath,
         PREVIOUS_VERSION: "3.1.1",
-        RELEASE_EXISTS: "false",
+        RELEASE_STATE: "missing",
         TAG_EXISTS: "false",
       },
     },
@@ -464,6 +500,69 @@ test("release planning writes GitHub Actions outputs", async (context) => {
       "",
     ].join("\n"),
   );
+});
+
+test("릴리스 워크플로가 GitHub 상태를 전달하고 조회 실패 때 중단한다", async (context) => {
+  const temporaryRoot = await mkdtemp(join(tmpdir(), "hope-release-workflow-"));
+  context.after(async () => await rm(temporaryRoot, { recursive: true, force: true }));
+  const workflow = normalizeLineEndings(await readFile(
+    join(root, ".github/workflows/release.yml"), "utf8",
+  ));
+  const body = workflow.match(
+    /- name: Choose release mode[\s\S]*?run: \|\n([\s\S]*?)(?=      - name:)/u,
+  )?.[1];
+  assert.ok(body, "릴리스 상태 결정 단계를 찾을 수 없습니다.");
+  const script = body.replace(/^ {10}/gmu, "");
+  const outputPath = join(temporaryRoot, "github-output.txt");
+  const argumentsPath = join(temporaryRoot, "gh-arguments.txt");
+  for (const [releaseState, tagExists, queryExitCode, expectedMode] of [
+    ["published", true, 0, "none"],
+    ["missing", true, 0, "resume"],
+    ["missing", false, 0, "recorded"],
+    ["draft", true, 0, null],
+    ["draft", false, 0, null],
+    ["missing", false, 1, null],
+  ]) {
+    await writeFile(outputPath, "", "utf8");
+    const result = spawnSync("bash", ["-e", "-o", "pipefail", "-c", `
+      gh() {
+        printf '%s\\n' "$@" > "$TEST_GH_ARGUMENTS"
+        printf '%s\\n' "$TEST_RELEASE_STATE"
+        return "$TEST_QUERY_EXIT"
+      }
+      git() { return "$TEST_TAG_EXIT"; }
+      ${script}
+    `], {
+      cwd: root,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        EVENT_NAME: "workflow_dispatch",
+        GITHUB_OUTPUT: outputPath,
+        GITHUB_REPOSITORY: "fixture-owner/hope",
+        GITHUB_REPOSITORY_OWNER: "fixture-owner",
+        TEST_GH_ARGUMENTS: argumentsPath,
+        TEST_QUERY_EXIT: String(queryExitCode),
+        TEST_RELEASE_STATE: releaseState,
+        TEST_TAG_EXIT: tagExists ? "0" : "1",
+      },
+    });
+    assert.equal(result.status, expectedMode ? 0 : 1, result.stderr);
+    const output = await readFile(outputPath, "utf8");
+    if (expectedMode) {
+      assert.ok(output.includes(`mode=${expectedMode}\n`), output);
+    } else {
+      assert.equal(output, "");
+      if (releaseState === "draft") {
+        assert.match(result.stderr, /미완료 릴리스 초안/u);
+      }
+    }
+    const arguments_ = await readFile(argumentsPath, "utf8");
+    assert.match(arguments_, /^api\ngraphql\n/u);
+    assert.match(arguments_, /owner=fixture-owner\n-f\nname=hope\n/u);
+    assert.match(arguments_, /release\(tagName: \$tag\) \{ isDraft \}/u);
+    assert.match(arguments_, /--jq\n.*"missing".*"draft".*"published"/u);
+  }
 });
 
 test("CI keeps release decisions local and publishes a checked package", async () => {
@@ -484,9 +583,9 @@ test("CI keeps release decisions local and publishes a checked package", async (
   assert.ok(verifyInstall < verify.indexOf("- run: npm run check"));
   assert.match(
     verify,
-    /git diff --exit-code --\s+plugins\/hope-commit\/LICENSE\s+plugins\/hope-commit\/NOTICE\s+tools\/plugin-package-files\.txt/u,
+    /git diff --exit-code --\s+plugins\/hope\/LICENSE\s+plugins\/hope\/NOTICE\s+tools\/plugin-package-files\.txt/u,
   );
-  assert.doesNotMatch(verify, /plugins\/hope\/LICENSE/u);
+  assert.doesNotMatch(verify, /plugins\/hope-commit\/LICENSE/u);
   for (const workflow of workflows) {
     const actionReferences = [
       ...workflow.matchAll(/actions\/(?:checkout|setup-node)@([^\s#]+)/gu),

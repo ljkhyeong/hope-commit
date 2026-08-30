@@ -1,6 +1,6 @@
 <p align="center">
   <img
-    src="plugins/hope-commit/assets/hope-protected-light.png"
+    src="plugins/hope/assets/hope-protected-light.png"
     width="128"
     alt="Hope Protected Light icon"
   >
@@ -10,8 +10,8 @@
 
 <p align="center">
   <strong>
-    Review one Git commit as evidence-linked offline HTML while keeping the
-    original Hope capabilities available.
+    Review one immutable Git commit as evidence-linked offline HTML while
+    keeping the original Hope capabilities available.
   </strong>
 </p>
 
@@ -21,8 +21,8 @@
 
 > [!NOTE]
 > Hope Commit is an unofficial fork of [Hope](https://github.com/dkstm95/hope)
-> by SeungIl. It preserves the original Git history and MIT license. The
-> original project does not endorse or maintain this fork.
+> by SeungIl, based on Hope 6.0.0. It preserves the original Git history and
+> MIT license. The original project does not endorse or maintain this fork.
 
 ## Features
 
@@ -34,11 +34,11 @@ parent by default, supports an explicit parent for merge commits, and compares
 a root commit with Git's empty tree.
 
 The collector reads committed Git objects instead of the worktree. Staged,
-unstaged, and untracked files therefore cannot change the captured review. It
-keeps Hope Diff's bounded input, redaction, evidence validation, temporary-state
-ownership, and atomic publication guarantees.
+unstaged, and untracked files cannot change the captured review. It preserves
+bounded input, redaction, evidence validation, temporary-state ownership, and
+atomic publication guarantees.
 
-Example request:
+Commit Diff runs only when it is explicitly invoked:
 
 ```text
 Use $hope:commit to review commit f6363ced in this repository and create Korean HTML.
@@ -48,43 +48,46 @@ Use $hope:commit to review commit f6363ced in this repository and create Korean 
 
 ### 🤝 Align — Reach shared understanding before implementation and prevent `intent debt`
 
-Align reviews the request against verifiable evidence and interviews the person
-about material gaps, contradictions, risks, unsupported assumptions, edge
-cases, and simpler alternatives that could change the result.
+Align reviews the request against verifiable evidence, maps every material
+intent decision, and interviews the person in dependency-aware rounds. Each
+answer reshapes the remaining questions; Align finishes only after no material
+decision remains and the person confirms the complete intent in a teach-back.
 
-When the agreement needs a durable record for later work or review, or the
-person asks for an artifact, Align writes one self-contained HTML brief inside
+When the agreed intent needs a durable record for later work or review, or the
+person asks for an artifact, Align writes one self-contained HTML record inside
 the project. A small, clear task that will continue in the current session can
 stay in the conversation without creating a file.
 
-A brief contains one agreed goal and a set of completion criteria. Each
-criterion includes how it is verified and who—AI or the person—judges it.
-Material changes remain as new versions in the same file, and the document
-serves as the implementation contract.
+The record preserves one agreed goal and problem, the observable outcomes that
+define the decided intent, deliberately excluded work, and any user flow that
+needs sequence. It excludes
+solution design, implementation details, current implementation state, and
+completion results. Later work may consult it as evidence of intent, but it is
+not an implementation contract or current-system specification.
 
-For material UI work without attached references, Align checks the project
-first, uses web search when needed, and presents two or three image mockups.
+When a material visual choice cannot be settled honestly through conversation,
+Align checks the project first and presents two or three image mockups as
+evidence for that choice. It does not turn every UI task into a design exercise.
 
 > [!IMPORTANT]
-> Generated Align briefs are project documentation. Later version-control work
+> Generated Align records are project documentation. Later version-control work
 > includes them with related project changes unless the person excludes them.
 
-**Complete example HTML:** [Open the English Align brief file page for a fan
-schedule that makes source conflicts, changes, cancellations, and verification
-ownership explicit.](docs/alignments/rescene-fan-calendar.en.html) Download the
-file from that page, then open it locally to use its interactions.
+**Complete example HTML:** [Open the English Align record for a fan schedule that
+makes source conflicts, changes, cancellations, and judgment responsibility
+explicit.](docs/alignments/rescene-fan-calendar.en.html)
 
 The captures below come from this example. It uses sample data and does not
 represent the live `rescene.fan` interface.
 
-![English Hope Align example showing the trusted fan-schedule goal, completion criteria, and boundary](assets/readme/hope-align-en.png)
+![English Hope Align example showing the trusted fan-schedule goal and decided intent](assets/readme/hope-align-en.png)
 
 <details>
 <summary>View detailed Align captures</summary>
 
-| Compared UI directions | Source and lifecycle decisions |
+| Compared design directions | Decided intent and judgment markers |
 | --- | --- |
-| [![Two UI directions for the trusted fan schedule in an English Align artifact](assets/readme/hope-align-directions-en.png)](assets/readme/hope-align-directions-en.png) | [![Source priority, conflict, freshness, and cancellation decisions in an English Align artifact](assets/readme/hope-align-decisions-en.png)](assets/readme/hope-align-decisions-en.png) |
+| [![Two design directions for the trusted fan schedule in an English Align artifact](assets/readme/hope-align-directions-en.png)](assets/readme/hope-align-directions-en.png) | [![Decided outcomes, user flow, exclusions, and judgment markers in an English Align artifact](assets/readme/hope-align-decisions-en.png)](assets/readme/hope-align-decisions-en.png) |
 
 </details>
 
@@ -112,10 +115,8 @@ understanding in follow-up decisions and work.
 The captures below come from a fixed English Diff example based on
 [Ky PR #867](https://github.com/sindresorhus/ky/pull/867).
 
-**Complete example HTML:** [Open the English Diff artifact file page for Ky PR
-#867 with its retry-configuration microworld and
-quiz.](docs/diffs/ky-867-retry-extend.en.html) Download the file from that page,
-then open it locally to use its interactions.
+**Complete example HTML:** [Open the English Diff artifact for Ky PR #867 with
+its retry-configuration microworld and quiz.](docs/diffs/ky-867-retry-extend.en.html)
 
 ![English Hope Diff example for Ky pull request 867 showing the goal, before and after behavior, and verification item](assets/readme/hope-diff-en.png)
 
@@ -136,46 +137,43 @@ then open it locally to use its interactions.
 
 Red finds. Blue challenges. The active agent judges.
 
-Independent Red reviewers probe distinct material risks. When a finding is
-consequential or materially uncertain, a fresh Blue verifier sees only the
-sealed finding and scoped evidence. Blue tries to disprove it and expose
-overstatement or missing context; it does not defend the work product or decide
-the result.
+Independent Red reviewers probe distinct material risks. Every high-priority
+finding, every finding that proposes a broad or difficult-to-reverse action,
+and every materially uncertain finding receives a fresh Blue verifier. Blue
+separately challenges the issue, impact, scope, and proposed action against the
+sealed finding and scoped evidence.
 
-The active agent retains final judgment and reports only the findings supported
-by the evidence.
+The active agent retains final judgment, records each candidate's disposition
+and each actionable candidate's final priority, and reports findings no more
+strongly than the evidence supports.
 
 > [!TIP]
 > Ask Hope to limit the Red reviewer count when you want a smaller routine run.
-> Review size alone does not add Blue, but a consequential or materially
-> uncertain finding still triggers it.
-
----
-
-### ✨ Polish — Refine implemented work
-
-Independent review agents look for useful improvements.
-
-For code, they check reuse of existing helpers, simplicity, efficiency, and
-abstraction fit.
-
-A fresh finisher judges the results, applies only the improvements that work
-together, and verifies the result.
-
-Polish does not hunt for bugs, develop features, perform migrations, or handle
-broad maintenance.
+> Review size alone does not add Blue, but high-priority, broad-action, or
+> materially uncertain findings still require it.
 
 ---
 
 ### 🧹 Sweep — Clean up a codebase
 
-Sweep performs a read-only review of a codebase.
+Sweep runs only when explicitly invoked. It immediately applies proven,
+behavior-preserving cleanup.
 
-It looks for broken references, stale code, unsupported abstractions,
-verification gaps, dependency or license risk, delivery waste, unclear
-ownership, and similar maintenance risks.
+Sweep uses the entire current repository unless the request names a narrower
+scope inside it.
 
-Select a candidate from the review results to start work.
+It cleans up:
+
+- dead code and its dedicated tests, documentation, configuration, generation,
+  and assets;
+- duplicated implementations, unnecessary work, and needless indirection;
+- abstractions that are missing, excessive, or owned by the wrong boundary;
+- documentation, comments, examples, and configuration that no longer match
+  the code; and
+- the minimum tests or checks needed to refactor safely.
+
+Bug fixes, behavior or public-contract changes, product decisions, and
+uncertain removals remain outside Sweep.
 
 ---
 
@@ -194,7 +192,7 @@ Write's shared standard adapts George Orwell's six rules in
 You need:
 
 - Node.js 22 or newer
-- An authenticated [GitHub CLI](https://cli.github.com/) to use PR-based Diff. Run
+- An authenticated [GitHub CLI](https://cli.github.com/) to use Diff. Run
   `gh auth login` first if needed.
 
 > [!TIP]
@@ -205,14 +203,9 @@ You need:
 > Follow the repository README and tell me if I need to restart.
 > ```
 
-To install it yourself, follow the section that matches your current setup.
+To install it yourself, run the commands for your host.
 
-Hope Commit uses the same `$hope:*` Skill namespace as the original Hope
-plugin. Do not enable both plugins at the same time.
-
-### First installation
-
-Run these commands when no other Hope plugin is installed.
+For example:
 
 ```bash
 # Codex
@@ -225,55 +218,8 @@ codex plugin add hope@hope-commit
 claude plugin marketplace add ljkhyeong/hope-commit
 claude plugin install hope@hope-commit
 ```
-
-After installation, start a new Codex task. In Claude Code, start a new session
-or run `/reload-plugins`.
-
-### Move from the original Hope plugin
-
-If you use the original `hope@hope`, remove it before installing Hope Commit.
-
-```bash
-# Codex
-codex plugin remove hope@hope
-codex plugin marketplace add ljkhyeong/hope-commit
-codex plugin add hope@hope-commit
-```
-
-```bash
-# Claude Code
-claude plugin uninstall hope@hope
-claude plugin marketplace add ljkhyeong/hope-commit
-claude plugin install hope@hope-commit
-```
-
-After the move, start a new Codex task. In Claude Code, start a new session or
-run `/reload-plugins`.
-
-### Upgrade from Hope Commit 3.x to 4.0
-
-Remove the 3.x `hope-commit@hope-commit` installation first. Then update its
-`hope-commit` marketplace and install the new `hope@hope-commit` plugin.
-
-```bash
-# Codex
-codex plugin remove hope-commit@hope-commit
-codex plugin marketplace upgrade hope-commit
-codex plugin add hope@hope-commit
-```
-
-```bash
-# Claude Code
-claude plugin uninstall hope-commit@hope-commit
-claude plugin marketplace update hope-commit
-claude plugin install hope@hope-commit
-```
-
-After the upgrade, start a new Codex task. In Claude Code, start a new session
-or run `/reload-plugins`.
 
 ## License
 
-[MIT](LICENSE). See [NOTICE](NOTICE) for original-project attribution and the
-bundled font notices under
-[`plugins/hope-commit/assets/fonts/`](plugins/hope-commit/assets/fonts/).
+[MIT](LICENSE). See [NOTICE](NOTICE) for the original Hope attribution and fork
+status.

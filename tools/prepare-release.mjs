@@ -17,8 +17,8 @@ const fromRoot = (path) => new URL(path, root);
 const versionFiles = Object.freeze([
   "package.json",
   "package-lock.json",
-  "plugins/hope-commit/.codex-plugin/plugin.json",
-  "plugins/hope-commit/.claude-plugin/plugin.json",
+  "plugins/hope/.codex-plugin/plugin.json",
+  "plugins/hope/.claude-plugin/plugin.json",
 ]);
 
 export function replaceVersion(content, version) {

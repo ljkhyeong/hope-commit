@@ -10,7 +10,7 @@ import { buildPlugin } from "./build-plugin.mjs";
 import { readPackageFileList } from "./stage-plugin.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
-const pluginRoot = resolve(root, "plugins/hope-commit");
+const pluginRoot = resolve(root, "plugins/hope");
 const sourceManifest = resolve(
   pluginRoot,
   ".codex-plugin/plugin.json",

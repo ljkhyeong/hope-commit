@@ -12,10 +12,10 @@ import { chromium } from "@playwright/test";
 import {
   inspectAlignArtifact,
   sealAlignHtml,
-} from "../plugins/hope-commit/skills/align/scripts/artifact.mjs";
-import { renderAlignArtifact } from "../plugins/hope-commit/skills/align/scripts/render.mjs";
-import { renderReview } from "../plugins/hope-commit/skills/diff/scripts/render.mjs";
-import { validateAnalysis } from "../plugins/hope-commit/skills/diff/scripts/validate.mjs";
+} from "../plugins/hope/skills/align/scripts/artifact.mjs";
+import { renderAlignArtifact } from "../plugins/hope/skills/align/scripts/render.mjs";
+import { renderReview } from "../plugins/hope/skills/diff/scripts/render.mjs";
+import { validateAnalysis } from "../plugins/hope/skills/diff/scripts/validate.mjs";
 import {
   alternateLocale,
   makeAlignArtifactData,
@@ -69,7 +69,7 @@ async function loadMockupFonts() {
   return Object.fromEntries(await Promise.all(
     Object.entries(mockupFontFiles).map(async ([weight, filename]) => [
       weight,
-      (await readFile(join(root, "plugins", "hope-commit", "assets", "fonts", filename))).toString("base64"),
+      (await readFile(join(root, "plugins", "hope", "assets", "fonts", filename))).toString("base64"),
     ]),
   ));
 }
@@ -314,7 +314,7 @@ async function captureReadmeAssets(browser, paths, outputDirectory) {
       const { alignPath, diffPath } = paths[suffix];
       await capturePage(page, alignPath, join(outputDirectory, `hope-align-${suffix}.png`));
       await captureElement(page, join(outputDirectory, `hope-align-directions-${suffix}.png`), "#design-directions");
-      await captureElement(page, join(outputDirectory, `hope-align-decisions-${suffix}.png`), "#agreement");
+      await captureElement(page, join(outputDirectory, `hope-align-decisions-${suffix}.png`), "#intent");
 
       await capturePage(page, diffPath, join(outputDirectory, `hope-diff-${suffix}.png`), {
         expectedTopSection: "#synopsis",
@@ -322,6 +322,10 @@ async function captureReadmeAssets(browser, paths, outputDirectory) {
       });
       await page.setViewportSize({ height: 900, width: 1440 });
       await captureElement(page, join(outputDirectory, `hope-diff-core-${suffix}.png`), "#core-change");
+      await page.locator(".microworld-disclosure").evaluate((details) => {
+        details.open = true;
+      });
+      await page.locator('.microworld-control[data-control-id="child"][value="number"]').check();
       await captureElement(page, join(outputDirectory, `hope-diff-microworld-${suffix}.png`), ".microworld", { expandDetails: true });
       await captureElement(page, join(outputDirectory, `hope-diff-quiz-${suffix}.png`), "#quiz", { expandDetails: true });
     } finally {

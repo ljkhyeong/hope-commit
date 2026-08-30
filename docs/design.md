@@ -3,18 +3,18 @@
 This document defines Hope's project-wide GUI guidance and the visual contracts
 of the current Align, Diff, and Commit Diff HTML artifacts.
 
-The Project GUI layout and Project GUI controls sections apply whenever a Hope
+The Project GUI layout and Project GUI widgets sections apply whenever a Hope
 feature introduces or changes a matching layout, control, or interaction.
 
 Feature-named sections apply only to that artifact. Sections named for Hope
-artifacts apply to both.
+artifacts apply to all three.
 
 The Align, Diff, and Commit Diff Skills own their feature judgment and prose.
 
 Align defines the shared artifact visual baseline. Diff matches that baseline
 for common color, type, spacing, product-bar, document, and navigation roles.
-Each feature still owns its visual tokens and renderer, and neither imports the
-other at runtime.
+Each feature still owns its visual tokens and renderer. No renderer imports
+another feature's renderer at runtime.
 
 Do not introduce a shared artifact framework until two real consumers need the
 same invariant.
@@ -51,16 +51,57 @@ Commit Diff:
 
 - structured label-and-value rows for summaries, with the goal first;
 - parallel cells only for brief comparisons that must be scanned together;
-- one ordered vertical sequence for behavior or process; and
-- visible conclusions with native disclosures for reasons, verification, and
-  supporting evidence.
+- one ordered vertical sequence for behavior or process;
+- visible conclusions with native disclosures for reasons;
+- compact inline markers for evidence and judgment methods; and
+- numbered inline evidence references with one folded source list at the end.
 
-Keep these visual roles consistent without making either renderer import the
-other feature.
+When one claim cites several numbered evidence entries, display that marker
+group in ascending document-number order. Keep each source's assigned number
+and the final source-list order unchanged.
 
 Keep summary labels compact without changing their wording. In Korean, when a
 summary label consists of two two-syllable words, stack one word per line in
 the label gutter while preserving the space in its text and accessible name.
+
+## Hope artifact layout
+
+Use one linear document at every viewport. Place the unnumbered document title
+first, then start the numbered reading areas with a visible `01 Summary`. Show
+the same number beside each area title and table-of-contents link. Number
+conditional areas in rendered order and leave no gap when one is omitted. Keep
+each section number the same type size and line height as its title.
+
+Give every numbered area a blue section number, text-colored title, and one
+clear divider directly below its title. Do not add a second rule above the
+area. Use 40 pixels between the document title and Summary, then 48 pixels
+between later areas on a wide screen and 40 pixels on a narrow screen. Use the
+smaller steps in this shared spacing scale within an area:
+
+```text
+4 · 8 · 12 · 16 · 24 · 32 · 40 · 48 · 64
+```
+
+On a wide screen, place a compact table-of-contents rail beside the document
+when it improves navigation. On a narrow screen, move the same navigation into
+a bounded panel opened from a control beside the display controls. Preserve the
+reading order and access to every item instead of hiding or squeezing them.
+
+Keep the Hope brand, repository identity, artifact status, and controls in one
+compact product bar. Group the language dropdown and bordered theme button as
+one display control, separate from navigation. Use one gap between the brand,
+repository, status, and action group, and the next smaller gap between controls
+inside the action group. Do not correct an individual item with a one-off
+margin.
+
+Render an ordered behavior or process as one connected vertical sequence. Keep
+each two-digit step number beside its title and put the detail below. Use
+horizontal columns only for direct comparison.
+
+Give the document title enough emphasis to establish the reading path, then
+keep body type compact and readable. Use thin dividers instead of enclosing
+ordinary content in cards. Omit an optional area instead of rendering an empty
+box.
 
 ## Diff artifact direction
 
@@ -110,8 +151,6 @@ comparison.
 Keep internal source IDs, model details, token counts, processing state, and
 capture time out of the first screen.
 
-Do not repeat repository identity in multiple prominent places.
-
 Use four top-level reading areas and omit a conditional area when it adds no
 value:
 
@@ -119,11 +158,6 @@ value:
 2. Behavior change
 3. Review items
 4. Evidence and scope
-
-Place the unnumbered document title first. Start the numbered reading areas
-below it with a visible `01 Summary`. Use the same number beside each area
-title and beside its table-of-contents link. When a conditional area is
-omitted, do not leave a gap.
 
 Summary previews the most important review items. Keep the complete **Review
 items** section in a native disclosure that starts closed; a fragment link to a
@@ -157,47 +191,48 @@ the human choice, condition, and outcome they represent.
 Show only the code excerpts needed for understanding instead of reproducing the
 full diff.
 
-Keep important evidence beside the claim it supports.
+Put a quiet numbered reference such as `[1]` immediately after every grounded
+claim. Reuse the number when the same source interval supports another claim.
+Activating the reference shows a bounded preview popover anchored to that
+reference. Place it below the marker when space allows, flip it above when
+needed, and keep it within the viewport. Its ordinary fragment link remains
+useful without JavaScript and leads to the canonical source entry.
 
-Keep inline evidence controls quiet and collapsed until requested. Use a
-24-pixel summary on a wide screen and a 44-pixel touch target on a narrow
-screen. Use thin dividers, whitespace, and type hierarchy before introducing a
-contained box.
+Collect the complete numbered source list in one native disclosure at the end
+of Evidence and scope. Start it closed on screen and reveal it for fragment
+navigation and print. Keep code excerpts there instead of repeating them below
+each claim.
+
+Do not repeat a plain **Code** or equivalent basis label when the numbered
+reference already links the claim to captured code. Keep a basis label only
+when it changes how the reader should judge the claim, such as an inference, a
+source statement, or something Hope could not confirm. Write those remaining
+labels as explicit phrases beside the claim and its evidence marker rather than
+as a separate metadata row. A teaching aid's evidence marker belongs beside
+the caption or instruction it supports, not alone at the end of the component.
 
 Use Evidence and scope as the complete index of the captured snapshot, checked
 files, supporting sources, exclusions, and limits.
 
-This order is informed by research showing that context supplied before a
-passage improves comprehension and recall
+This order follows evidence that context before a passage improves
+comprehension and recall
 ([Bransford and Johnson, 1972](https://doi.org/10.1016/S0022-5371(72)80006-9)),
-pre-training on a system's parts helps people build a mental model
+pre-training helps people build a mental model
 ([Mayer, Mathias, and Wetzell, 2002](https://pubmed.ncbi.nlm.nih.gov/12240927/)),
-and headings and previews direct attention in complex text
-([Lorch and Lorch, 1996](https://doi.org/10.1037/0022-0663.88.1.38)). The main
-path keeps secondary implementation mechanics folded while a new reader builds
-the first mental model, informed by research on the processing cost that can
-compete with learning
+and headings and previews direct attention
+([Lorch and Lorch, 1996](https://doi.org/10.1037/0022-0663.88.1.38)). Keep
+secondary implementation mechanics folded while the reader builds that model
+to reduce competing processing
 ([Sweller, 1988](https://doi.org/10.1207/s15516709cog1202_4)). Use a diagram
 only when its spatial structure makes a relationship or inference easier to
-find than equivalent prose
+find than prose
 ([Larkin and Simon, 1987](https://doi.org/10.1111/j.1551-6708.1987.tb00863.x)).
-
-Keep repository identity, the reviewed commit, a visible pull-request link, and
-artifact controls in one compact product bar. Use the same folder mark,
-repository type treatment, display-control group, and contents treatment as
-Align. Present the reviewed commit with the same quiet status treatment that
-Align uses for its current version. Keep the pull-request link outside the
-display-control group and preserve it when repository text is hidden at narrow
-widths. Group the language dropdown and bordered theme button as one control.
-Use a numbered desktop contents rail when it fits. Show the current section
-with an accent bar, a quiet tinted background, and its position in the reading
-order. Otherwise use an icon beside the display-control group and open the
-same contents treatment in a bounded right-side panel.
 
 ## Align artifact direction
 
-The Align artifact should feel like a compact project specification: direct,
-quiet, easy to scan, and complete enough to guide implementation.
+The Align artifact should feel like a compact intent record: direct, quiet,
+easy to scan, and complete enough to preserve what the person meant without
+describing the solution or implemented result.
 
 The Align feature's `scripts/design/tokens.mjs` owns its exact visual values.
 Diff rendering, Diff tokens, and removed Align implementations do not constrain
@@ -205,120 +240,311 @@ it.
 
 ## Align artifact structure
 
-The artifact is the current implementation agreement, not a progress tracker.
+The artifact is the current agreed intent. It is not a solution design,
+implementation contract, current-system description, or progress tracker.
 
 Show each fact once, in this order:
 
-1. title, then a summary whose first row is the one-sentence goal;
-2. problem, completion criteria, and governing boundary;
-3. included and excluded scope;
-4. compared design directions and the selected option, only when material UI
-   design needed visual agreement;
-5. agreed behavior, only when sequence or branching is clearer than prose;
-6. confirmed decision titles, their folded reasons, and decisions left to
-   implementation;
-7. supporting evidence, only when it adds a source that matters.
+1. title, then a summary containing only the one-sentence goal and problem;
+2. decided intent as the canonical observable outcome statements, followed by
+   an optional person-visible or domain-visible flow and a compact list of what
+   is not included;
+3. compared design directions and the selected option, only when the
+   person-facing experience needed visual agreement;
+4. supporting evidence, only when it adds a source that matters.
+
+Positive intent statements define what is included. Do not repeat them in a
+scope list, expected-behavior section, boundary section, or decision section.
+Attach a material reason to the statement it explains. Show a flow only when
+sequence or branching adds information that the statements do not already
+carry. Put deferred product work in **Not included**.
+
+Do not show unresolved intent in a ready artifact. A material unresolved intent
+means alignment is not ready. Put deliberately deferred work in **Not
+included**, and leave research or implementation uncertainty in the work that
+owns it. Earlier artifact versions may retain their historical fields, but the
+current record follows this structure.
 
 Keep earlier versions in the secondary version history navigation. Do not
 repeat version history at the bottom of the agreement.
 
-Keep repository identity, current version, and theme control in the compact
-product bar. Use **current agreement**, not language that implies an external
-approval workflow.
+Label the current version **current intent**, not with language that implies an
+external approval workflow or current implementation state. Do not repeat the
+record in a separate contract or implementation summary.
 
-The whole document is the implementation contract. Do not repeat it in a
-separate contract summary.
+Keep decided outcomes, exclusions, and any necessary user flow visible. Fold
+judgment methods, intent reasons, option references, and the
+supporting-evidence section. Put `[n]` after a claim only when its structured
+value names a validated evidence ID. Reuse that number throughout the current
+intent, show a bounded preview popover when it is activated, and keep the
+complete numbered evidence list in the final folded section. Unreferenced
+supporting evidence stays in that list without an invented claim link. Use
+these information roles directly; do not add length or item-count thresholds
+that make the same field change layout unpredictably.
 
-Keep conclusions, actions, boundaries, behavior, and unresolved choices
-visible. Fold verification methods, decision reasons, option references, and
-the supporting-evidence section. Use these information roles directly; do not
-add length or item-count thresholds that make the same field change layout
-unpredictably.
+Show each decided intent item as one visible observable condition. Put `[AI]` after a
+condition an AI agent can assess and `[User]` or the locale's equally compact
+user label after one that needs a person's judgment. Activating the marker
+opens the way to recognize the condition in a bounded popover anchored to that
+marker. Keep the complete judgment methods in one folded list at the end of the
+decided-intent section so fragment navigation and print preserve them. Do not turn them into progress
+controls or store their results in the artifact. Keep each inline marker at
+least 24 pixels and use a 44-pixel close target.
 
-Show each completion criterion as one visible passing condition. Keep its
-verification method and the agent-or-person decision source in a native
-disclosure directly below it. Keep completion criteria in the summary near the
-goal. Do not turn them into progress controls or store their execution results
-in the artifact. Use a compact 24-pixel summary on a wide screen and a 44-pixel
-touch target on a narrow screen.
+Number every decided intent item in reading order with `01`, `02`, `03`, even when the
+list is short. Use body prose weight for each observable condition, reserve
+stronger emphasis for the number and marker, and keep the expanded judgment
+source label quiet and secondary. When a statement has a reason, keep it in a
+native disclosure attached to that statement.
 
-Number every completion criterion in reading order with `01`, `02`, `03`, even
-when the list is short. Use body prose weight for each passing condition,
-reserve stronger emphasis for the number, and keep the verification source
-label quiet and secondary.
+Do not show architecture, modules, algorithms, tools, files, protocols, data
+structures, implementation order, test commands, implementation progress,
+completion controls, work owners, comments, changed files, test status, or
+model and interview metrics.
 
-Do not show implementation progress, completion controls, work owners, comments,
-changed files, test status, or model and interview metrics.
+## Project GUI widgets
 
-## Project GUI controls
+Use the relevant group below whenever Hope introduces or changes that widget or
+interaction.
 
-Add a control only when a Hope feature needs the action or choice. Use the
-platform's native semantics and behavior unless a feature contract requires a
-different implementation.
+A guideline does not create a reason to add a widget that Hope does not need.
 
-Use buttons for actions and links for navigation. Give every control a visible
-label or an accessible name, preserve visible keyboard focus, and never rely on
-color or hover alone to communicate state.
+When a matching widget exists, follow its guidelines unless a documented
+product need, accessibility requirement, or platform convention calls for a
+different choice.
 
-Prefer native disclosures, selects, and scrolling when they satisfy the
-feature contract. Keep destructive actions explicit, label actions by their
-result, and explain a recoverable failure beside the affected work.
+The list preserves all 86 guidelines from Jakob Nielsen's [10 GUI Design
+Elements Build Every User Interface](https://www.uxtigers.com/post/gui-widgets)
+in Hope's language.
 
-Feature sections below own the concrete controls, dimensions, states, and
-interaction checks used by each artifact. External design sources may inform a
-review, but they do not define Hope's GUI contract.
+### Buttons
+
+1. **GUI-01 — Pressable appearance.** Give a button a contained shape,
+   sufficient contrast, and a visible pressed state.
+2. **GUI-02 — Outcome label.** Start the label with a verb that names the
+   result. Avoid generic labels such as **OK**; if 2–4 words cannot explain the
+   result, reconsider the interaction.
+3. **GUI-03 — One primary action.** Give each screen exactly one visually
+   dominant primary action.
+4. **GUI-04 — Reachable target.** Keep frequent actions large and nearby, and
+   make a touch target at least 1 by 1 centimeter.
+5. **GUI-05 — Prompt acknowledgment.** Show that a press was received within
+   0.1 seconds.
+6. **GUI-06 — Disabled guidance.** Keep a temporarily unavailable button
+   visible but muted, and explain why it is unavailable and how to enable it.
+7. **GUI-07 — Action semantics.** Use buttons for actions and links for
+   navigation.
+8. **GUI-08 — Task-end placement.** Put the button after the fields or content
+   it completes, at the natural end of the task.
+
+### Input fields and forms
+
+1. **GUI-09 — Necessary fields.** Remove every field that is not required for
+   the task.
+2. **GUI-10 — Persistent labels.** Keep a visible label outside every field.
+   Treat placeholder text as a hint, never as the label.
+3. **GUI-11 — Flexible formats.** Accept reasonable input variations and
+   normalize them in software.
+4. **GUI-12 — Local recovery.** Put an error beside the field that caused it
+   and preserve everything the person entered.
+5. **GUI-13 — Task-specific controls.** Match the control to the data and task,
+   such as a date picker for a date or a trash control for removal.
+6. **GUI-14 — Single-column order.** Lay out a form in one column and group
+   related fields so the reading order stays clear.
+7. **GUI-15 — Submit outcome.** Name the submit button by the result instead of
+   using a generic **Submit** label.
+8. **GUI-16 — Validation timing.** Do not reject a value while the person is
+   still typing; validate after they leave the field.
+
+### Menus
+
+1. **GUI-17 — User vocabulary.** Name categories in the person's language and
+   verify the structure with card sorting and tree testing.
+2. **GUI-18 — Click to open.** Prefer click over hover. If hover is necessary,
+   add a short delay and tolerate diagonal movement toward a submenu.
+3. **GUI-19 — Shallow hierarchy.** Limit cascading menus to two levels and
+   restructure categories instead of adding more depth.
+4. **GUI-20 — Visible desktop navigation.** Show top-level navigation on a
+   desktop and reserve a compact menu for screens that lack the space.
+5. **GUI-21 — Current location.** Mark the person's current location in the
+   navigation.
+6. **GUI-22 — Meaningful order.** Order items by importance and task frequency;
+   alphabetize only when people know the exact name they seek.
+7. **GUI-23 — Promoted commands.** Keep the two or three most frequent commands
+   visible and reserve the menu for less frequent choices.
+
+### Links
+
+1. **GUI-24 — Visible link styling.** Mark an inline link with both color and
+   an underline.
+2. **GUI-25 — Exclusive link styling.** Reserve link styling for real links.
+3. **GUI-26 — Front-loaded meaning.** Put the most informative words first,
+   especially within roughly the first 11 characters.
+4. **GUI-27 — Predictable destination.** Write link text that predicts its
+   destination and remains meaningful outside the surrounding sentence.
+5. **GUI-28 — Visited state.** Distinguish visited and unvisited links when an
+   interface contains many links.
+6. **GUI-29 — Distinct roles.** Do not make a link look like a button or a
+   button look like a link.
+7. **GUI-30 — Same-tab default.** Open a link in the same tab by default and
+   state any exception in the visible link text.
+
+### Dialog boxes
+
+1. **GUI-31 — Blocking use only.** Use a modal only when a decision genuinely
+   blocks further work.
+2. **GUI-32 — Result labels.** Name each dialog button by its result instead of
+   relying on **OK** or **Cancel**.
+3. **GUI-33 — Safe defaults.** Default to the safest choice, make **Esc**
+   cancel, and never let an accidental **Enter** cause destruction.
+4. **GUI-34 — One question.** Ask one question per dialog and explain the
+   situation, consequence, and choice in 1–2 sentences.
+5. **GUI-35 — Undo reversible work.** Prefer undo over confirmation when an
+   action can be reversed.
+6. **GUI-36 — Modeless continuation.** Use a modeless dialog when work can
+   continue.
+7. **GUI-37 — No arrival overlay.** Never interrupt a newly arrived visitor
+   with an overlay.
+8. **GUI-38 — No dialog stacks.** Never open a dialog on top of another
+   dialog.
+
+### Alerts, notifications, and errors
+
+1. **GUI-39 — Plain language.** Explain the state in plain words and never show
+   a raw error code as the whole message.
+2. **GUI-40 — Exact source.** Identify what failed and point to the field,
+   file, or step where it happened.
+3. **GUI-41 — Recovery step.** State the way forward in one sentence.
+4. **GUI-42 — No blame.** Do not blame the person or use guilt-laden terms such
+   as **illegal**, **fatal**, or **invalid user**.
+5. **GUI-43 — Proportionate format.** Use a toast for information, a persistent
+   inline message for a recoverable error, and a modal alert only for a
+   catastrophic condition.
+6. **GUI-44 — Redundant status cues.** Communicate status with an icon, color,
+   and words rather than color alone.
+7. **GUI-45 — Notification restraint.** Keep notifications scarce by default
+   and let people control their frequency.
+
+### Icons
+
+1. **GUI-46 — Text pairing.** Pair an icon with text. Use a tooltip only when
+   space genuinely prevents a visible label.
+2. **GUI-47 — Standard metaphor.** Use the established symbol when one exists
+   instead of inventing a replacement.
+3. **GUI-48 — Recognition test.** Show a proposed icon by itself to five people
+   and ask what it means before trusting the metaphor.
+4. **GUI-49 — Coherent set.** Keep one visual style across the icon set while
+   giving every icon a distinct silhouette.
+5. **GUI-50 — Preserve learned symbols.** Do not redraw a familiar icon merely
+   to follow fashion.
+6. **GUI-51 — Small favicon.** Reduce the favicon to one strong shape and make
+   sure it remains clear at 16 by 16 pixels.
+7. **GUI-52 — Rare icon-only buttons.** Reserve an icon-only button for the
+   small set of near-universal symbols.
+
+### Checkboxes, radio buttons, and toggles
+
+1. **GUI-53 — Choice model.** Use checkboxes for independent choices and radio
+   buttons for mutually exclusive choices.
+2. **GUI-54 — Vertical options.** Stack options vertically so every label has
+   an unambiguous control.
+3. **GUI-55 — Clickable labels.** Make the whole label activate its control.
+4. **GUI-56 — Radio defaults.** Choose a sensible default and add a **None**
+   option when abstaining is valid.
+5. **GUI-57 — Positive wording.** Phrase choices positively and avoid nested
+   negatives.
+6. **GUI-58 — Immediate toggles.** Use a toggle only when its setting takes
+   effect immediately; use a checkbox when a later submit action commits it.
+7. **GUI-59 — One yes-or-no control.** Represent a yes-or-no choice with one
+   checkbox instead of two radio buttons.
+8. **GUI-60 — Visible small sets.** Show 2–4 choices as radio buttons rather
+   than hiding them in a select.
+
+### Tabs
+
+1. **GUI-61 — One row.** Keep tabs in one row and reduce their number or label
+   length when they do not fit.
+2. **GUI-62 — Short labels.** Name each tab with 1–2 plain words.
+3. **GUI-63 — Distinct states.** Connect the selected tab visually to its panel
+   and distinguish selected, hovered, and unselected states.
+4. **GUI-64 — Parallel peers.** Use tabs only for content of the same type at
+   the same level; use a visible step sequence for ordered work.
+5. **GUI-65 — Useful default.** Open the tab that most people need first.
+6. **GUI-66 — Comparison in one view.** Never split content people must compare
+   across tabs; use a comparison table.
+7. **GUI-67 — Addressable tabs.** Give each tab its own URL when the platform
+   allows it.
+
+### Search
+
+1. **GUI-68 — Visible search box.** Put an open search box near the top of every
+   page in a content-rich site instead of hiding it behind an icon.
+2. **GUI-69 — Query width.** Make the field at least 27 characters wide so a
+   person can see and edit the whole query.
+3. **GUI-70 — Familiar submission.** Use a magnifying glass for submission and
+   make **Enter** work.
+4. **GUI-71 — Forgiving matching.** Tolerate typos, plurals, and synonyms.
+5. **GUI-72 — Retained query.** Keep the query in the field on the results page
+   so it can be revised.
+6. **GUI-73 — Complete results UI.** Use scannable titles, explanatory
+   snippets, and filters when the collection needs them.
+7. **GUI-74 — Complete index.** Index everything people consider part of the
+   site.
+8. **GUI-75 — Search-log review.** Review search logs every month and treat
+   common queries with poor results as usability defects.
+
+### Windows and scrolling
+
+1. **GUI-76 — Same-window default.** Open content in the current window or tab
+   unless the person chooses otherwise.
+2. **GUI-77 — Native scrolling.** Never override the speed or direction of the
+   platform's scroll gesture.
+3. **GUI-78 — Visible scrollbars.** Keep a scrollbar visible for every
+   scrollable pane.
+4. **GUI-79 — Bounded infinite scroll.** Use infinite scroll only when nothing
+   important appears below the list; otherwise provide **Load more**.
+5. **GUI-80 — Important content first.** Order content by importance because
+   attention declines with each screenful.
+6. **GUI-81 — Working Back.** Protect the Back action and avoid gratuitous new
+   windows or state changes that break it.
+
+### Pointers and cursors
+
+1. **GUI-82 — Platform cursors.** Use the platform's standard cursors without
+   restyling them.
+2. **GUI-83 — Truthful cursor.** Show a pointing hand only for a clickable
+   element and an I-beam only for editable text.
+3. **GUI-84 — Long-wait feedback.** Show a busy indicator for a wait longer
+   than 1 second.
+4. **GUI-85 — No hover-only path.** Never make hover the only way to reach
+   important information or an action.
+5. **GUI-86 — Visible keyboard focus.** Give keyboard navigation a visible
+   focus indicator.
 
 ## Align artifact layout
 
-Use one linear document. Give the current agreement most of the page and keep
-version history secondary.
+Give the current intent most of the page and keep version history secondary. In
+the wide-screen rail, show the current version and at most one prior version
+summary. Open earlier detail from that history instead of repeating it in the
+document. When the rail does not fit, include the history in the common
+navigation panel opened by one 44-pixel control to the right of the theme
+control.
 
-Place the unnumbered document title first. Start the numbered reading areas
-below it with a visible `01 Summary`. Use the same number beside each area
-title and beside its table-of-contents link. Omitted optional areas do not
-leave gaps. Keep each section number the same type size and line height as its
-title.
+Keep the positive intent statements in one reading column. Present **Not
+included** as one compact list in two columns on a wide screen and one column on
+a narrow screen. Do not create a matching included-scope column.
 
-Give every numbered area one clear divider directly below its title. Do not add
-a second rule above the area. Combine margin and padding into 40 pixels between
-the document title and Summary. Between later areas, use 48 pixels on a wide
-screen and 40 pixels on a narrow screen. Use the smaller internal spacing steps
-for related content inside one area.
+Nest an optional flow below the intent statements. Stack outcomes after its
+sequence in their original order. Do not invent phase groups or branches that
+the artifact data does not contain.
 
-On a wide screen, place a narrow rail beside the document. Show a table of
-contents only when it improves navigation. Keep the current version and at
-most one prior version summary visible. Open earlier version detail from that
-history instead of repeating it in the document.
+Number decided intent items in reading order and keep their reasons directly
+attached. Do not create another decision list.
 
-Put one 44-pixel navigation control to the
-right of the theme control and open the table of contents and version history in
-a bounded right-side panel when the navigation rail does not fit. Treat included
-and excluded scope as one parallel classification: compare them in two columns
-on a wide screen, then stack included scope before excluded scope on a narrow
-screen. Do not choose the layout from item length or count.
-
-Render agreed behavior as one ordered vertical sequence at every viewport.
-Keep each step's number beside its title and place the detail below the title.
-Stack outcomes after the sequence in their original order. Do not invent phase
-groups or branches that the artifact data does not contain.
-
-In the product bar, use the same folder mark and repository type treatment as
-Diff. Group the language dropdown and bordered theme button as one display
-control, separate from navigation. Use one gap between the brand, repository,
-version, and action group. Use the next smaller gap only between controls inside
-the action group. Do not add one-off margins to an individual product-bar item.
-
-Number agreed decisions in reading order.
-
-Use thin dividers instead of enclosing ordinary content in cards. Give the
-document title enough emphasis to establish the reading path, then keep body
-type compact and readable. Omit an optional section instead of rendering an
-empty box.
-
-Show two or three design directions together in one comparison section. Keep
-the same option order. Keep recommendation and selection labels beside the
-option title so they do not create a separate comparison row. On a wide screen,
-compare each option's title, image,
+Show two or three person-facing design directions together in one
+comparison section. Keep the same option order. Keep recommendation and
+selection labels beside the option title so they do not create a separate
+comparison row. On a wide screen, compare each option's title, image,
 brief summary, strengths, and trade-offs in parallel; align those shared rows
 across the options and stack each complete option on a narrow screen. Inside
 each option, put strengths and trade-offs before recommendation and selection
@@ -335,30 +561,25 @@ only from Align's own tokens.
 ## Hope artifact branding
 
 Align, Diff, and Commit Diff embed the fixed Hope Sans files and Hope product
-icon under `plugins/hope-commit/assets/`. Diff and Commit Diff also embed Hope
-Code from the same asset folder.
-Each feature still owns how those assets are applied in its renderer.
+icon under `plugins/hope/assets/`. Diff and Commit Diff also embed Hope Code
+from the same asset folder. Each feature still owns how those assets are
+applied in its renderer.
 
 Put the Hope icon immediately before **HOPE** in both product bars. Keep the
 visible wordmark as the accessible name; the icon is decorative.
 
 ## Diff artifact layout
 
-Use one linear document in every viewport.
-
 On a wide screen:
 
 - keep the main text at a readable width;
-- place a compact table of contents beside it when space allows;
-- keep the product bar compact and place the artifact title in the document;
 - keep dense body text intentionally smaller than mobile text; and
 - do not stretch paragraphs across a large monitor.
 
 On a narrow screen:
 
-- keep the same information order and status language;
-- use one column;
-- put a compact native collapsible table of contents in the product bar;
+- open a compact native collapsible table of contents from an icon-only control
+  beside the display control in the product bar;
 - do not give the closed table of contents its own body row or vertical gap;
 - open its links in a bounded panel directly below the product bar;
 - keep the panel vertically scrollable without passing its scroll gesture to
@@ -366,21 +587,26 @@ On a narrow screen:
 - close the open panel with Escape and return focus to its control; and
 - use larger body text and touch targets.
 
-Group the language dropdown and theme control as one 44-pixel display control.
-Give the theme segment a visible boundary. Keep the pull-request link outside
-that group. When the display and contents controls appear together, give both a
-44-pixel height, the same border role, and the same corner radius.
+Use the same folder mark and repository type treatment as Align. Present the
+reviewed commit with the same quiet status treatment that Align uses for its
+current version. In both the rail and panel, mark the current section with an
+accent bar, quiet tinted background, and its position in the reading order.
+
+Give the common display control a 44-pixel height and give its theme segment a
+visible boundary. Keep the pull-request link outside that group. When the
+display and contents controls appear together, give them the same height,
+border role, and corner radius. Preserve the pull-request link when repository
+text is hidden on a narrow screen.
 
 An icon-only control may be narrower, but it must not look like a smaller
 control family.
 
-The product bar owns repository and pull request identity.
+The product bar is the only place that shows repository and pull-request
+identity.
 
 The document owns the change-based artifact title. Summary owns the goal. The
 product bar owns the compact reviewed commit, and collapsed review information
 owns capture time.
-
-Do not repeat repository identity.
 
 Do not add a persistent sentence that explains that an offline artifact does not
 update itself.
@@ -394,25 +620,21 @@ Use three clear roles.
 
 | Role | Font |
 | --- | --- |
-| Body prose | Hope Sans Light, from Gmarket Sans |
-| Wordmark, controls, labels, and headings | Hope Sans Medium or Bold |
+| Body prose and controls | Hope Sans Medium, from Gmarket Sans |
+| Wordmark and headings | Hope Sans Bold |
 | Code, commands, paths, and hashes | Hope Code, from D2Coding |
 
-Embed the fixed WOFF2 files in every offline artifact.
-
-Commit Diff also embeds the complete OFL notices in its offline artifact so a
-standalone HTML copy carries the license terms for its bundled fonts.
-
-Use a local sans-serif or monospace fallback only for characters that the
-bundled fonts do not contain.
-
-Do not synthesize a missing font weight.
+Embed the fixed WOFF2 files in every offline artifact. Commit Diff also embeds
+the complete OFL notices so a standalone HTML copy carries the license terms
+for its bundled fonts. Use a local sans-serif or monospace fallback only for
+characters that the bundled fonts do not contain, and do not synthesize a
+missing font weight.
 
 Hope presents the converted files under Hope-owned family names because both
 source licenses reserve their original family names.
 
 Keep their source hashes, build commands, and licenses beside the shared fonts
-under `plugins/hope-commit/assets/fonts/`.
+under `plugins/hope/assets/fonts/`.
 
 Use the same compact prose scale as Align and adjust it only through named
 tokens. Diff keeps a separate code scale:
@@ -425,35 +647,11 @@ tokens. Diff keeps a separate code scale:
 | Page title | 32px / 1.2 | 28px / 1.2 |
 | Section title | 18px / 1.4 | 16px / 1.4 |
 
-Keep prose near 60–80 characters per line.
-
-Long paths and code may scroll inside their own region.
-
-Text-bearing controls use a minimum height and grow when text is enlarged.
-
-They must not create page-level horizontal scrolling.
+Keep prose near 60–80 characters per line. Long paths and code may scroll
+inside their own region. Text-bearing controls use a minimum height and grow
+when text is enlarged without creating page-level horizontal scrolling.
 
 ## Diff artifact space and boundaries
-
-Use Align's small, consistent spacing scale.
-
-Do not invent a new gap for each component.
-
-```text
-4 · 8 · 12 · 16 · 24 · 32 · 40 · 48 · 64
-```
-
-Give each top-level section a clear start.
-
-Use a blue section number, a text-colored title, a clear title divider, and
-measured space. Match Align's 48-pixel wide-screen and 40-pixel narrow-screen
-separation between top-level areas.
-
-Number conditional sections in their rendered order so the document and its
-table of contents agree.
-
-Use one clear divider directly below each top-level section title instead of a
-second rule above the section or a line extending through its body.
 
 Use two border roles:
 
@@ -481,46 +679,36 @@ Use one quiet marker gutter to help the eye follow body content:
   not paired with another generic bullet; and
 - nested lists stop after one level and use a neutral marker inside.
 
-Keep the first-screen review result especially compact.
-
-Render each preview as a small kind marker, plain importance text, and title.
-
-Do not add a representative status, total, or kind counts above the previews.
-
+Keep the first-screen review result especially compact. Render each preview as
+a small kind marker, plain importance text, and title, separated by spacing
+rather than rules. Do not add a representative status, total, or kind counts.
 When no item exists, show one plain empty-result sentence.
 
-Show concrete material scope limits without a generic scope badge.
-
-Omit that synopsis row when no material limit exists.
-
-Use the same label-and-value grid as the other synopsis rows.
-
-Separate preview items with spacing, not rules.
+Show concrete material scope limits in the same label-and-value grid as the
+other synopsis rows, without a generic scope badge. Omit the row when no
+material limit exists.
 
 Use semantic `ul` and `ol` elements for content that is a list.
 
-Put the unnumbered change-based artifact title first. Start the self-contained
-synopsis below it with a visible `01 Summary`. Render the goal as the first
-label-and-value row, using the same label type, spacing, and divider rhythm as
-the other summary rows. Keep the provider's pull-request title and capture time
-in collapsed review information.
+Render the goal as the first label-and-value row in Summary. Keep the
+provider's pull-request title and capture time in collapsed review information.
 
-Use the same section-title divider rhythm as Align. Keep each section number
-the same type size and line height as its title.
+In each full review item, align kind, importance, and any visible basis on one
+visual centerline.
 
-In each full review item, align kind, importance, and basis on one visual
-centerline.
+Keep kind and importance as outlined markers. When basis changes how the reader
+should judge the item, show it as quieter plain text; omit a code basis that the
+numbered evidence already makes visible.
 
-Keep kind and importance as outlined markers and basis as quieter plain text.
+## Hope artifact themes
 
-Render behavior steps as one connected vertical sequence at every viewport.
-Keep the same two-digit number gutter, text, and order in Align and Diff. This
-keeps the reading path stable when a step contains longer prose and reserves
-horizontal columns for direct comparison.
+Generate each artifact as one self-contained file that supports light and dark
+themes. The initial theme comes from the artifact input or resolved display option:
+`system`, `light`, or `dark`. The theme control changes only the open document;
+it does not write host configuration or browser storage. Reload restores the
+generated initial theme, and print uses the light surface.
 
-## Align artifact color and themes
-
-Generate one Align artifact that supports light and dark themes.
+## Align artifact color
 
 The light view uses a warm near-white document surface, near-black text, thin
 neutral dividers, and blue for navigation and agreement state. The dark view
@@ -528,16 +716,9 @@ uses a near-black surface, off-white text, quiet gray dividers, and a brighter
 blue accent.
 
 Exact Align values live only in
-`plugins/hope-commit/skills/align/scripts/design/tokens.mjs`.
+`plugins/hope/skills/align/scripts/design/tokens.mjs`.
 
-The initial theme comes from the artifact input: `system`, `light`, or `dark`.
-The theme button changes only the open document. It does not write browser
-storage or host configuration, and reload restores the generated initial
-theme. Print uses the Align light surface.
-
-## Diff artifact color and themes
-
-Generate one Diff artifact that supports light and dark themes.
+## Diff artifact color
 
 The official light palette is `Sand Paper`: the same warm near-white page and
 slightly brighter reading surface used by Align.
@@ -547,30 +728,9 @@ It should feel softer than pure white without looking beige or gray.
 Exact Hope surface values live only in the Diff feature's
 `scripts/design/tokens.mjs`.
 
-Code is a separate visual surface with fixed Hope light and dark colors.
-
-A theme change switches both at once.
-
-It does not replace the Hope palette outside code.
-
-Insert repository text only as escaped content.
-
-Keep source lines explicit in the document and distinguish patch additions,
-deletions, context, and hunk headers without a stateful language parser.
-
-The initial theme comes from the resolved Diff display option:
-
-- `system`;
-- `light`; or
-- `dark`.
-
-The theme control changes only the open document.
-
-It does not write host configuration or browser storage.
-
-Reloading returns to the generated initial theme.
-
-Print uses a light surface.
+Code is a separate visual surface with fixed Hope light and dark colors. A theme
+change switches the code surface with the artifact without replacing the Hope
+palette outside code.
 
 Use these status roles:
 
@@ -581,9 +741,7 @@ Use these status roles:
 | Verify | Blue |
 | Scope | Neutral blue-gray |
 
-Importance stays in text.
-
-Never use color as the only status signal.
+Keep importance in text and never use color as the only status signal.
 
 ## Diff artifact interaction
 
@@ -593,61 +751,53 @@ Use trusted, fixed scripts only.
 
 Supported interactions can include:
 
-- open or close evidence;
+- preview a numbered evidence reference and open its canonical list entry;
 - move through the table of contents;
 - switch the current document theme;
 - try a safe declarative microworld;
 - draft an optional quiz response without submitting or saving it; and
 - reveal the quiz answer and evidence through a separate disclosure.
 
+Anchor a reference preview to the marker that opened it. Prefer the space below
+the marker, flip above when needed, and clamp it to the viewport. Reposition it
+after scrolling or resizing while the marker remains visible. On a narrow
+screen, use a bottom sheet only when neither side has enough usable height.
+
 Keep a microworld's title, instructions, and model warning visible. Fold its
 controls, scenarios, simplifying assumptions, omissions, and evidence into one
 native disclosure. These are optional exploration details, not prerequisites
 for understanding the behavior summary and flow.
 
-Use the visible quiz question as the response field's persistent label.
+Use the visible quiz question as the response field's persistent label. When
+that question and a clear placeholder make the purpose evident, do not repeat a
+generic label such as **My answer** or **Selection**. Keep the question
+programmatically associated with the field, and give repeated controls unique
+accessible names through their questions. A response is never required before
+the answer can be opened.
 
-When that question and a clear placeholder make the purpose evident, do not
-repeat a generic visible label such as **My answer** or **Selection**.
+Print omits the reader's transient quiz response and shows every review item,
+microworld detail, question, answer, and supporting evidence regardless of the
+current disclosure state.
 
-Keep the question programmatically associated with the field and retain an
-accessible name for assistive technology.
+The **Evidence and scope** section is a dense reference appendix. Keep the
+section open initially so its source groups, context checks, scope limits,
+checked-file group, artifact details, and final numbered evidence list remain
+visible as independent disclosures that start closed.
 
-A response is never required before the answer can be opened.
+Use native disclosure controls so they work without JavaScript. Opening a
+fragment link must reveal every disclosure that contains its target.
 
-Give repeated controls a unique accessible name by associating each one with its
-question.
+Code markup must contain explicit line separators. One source line remains one
+visible line without layout styles; long lines scroll inside the code surface
+instead of merging with adjacent lines.
 
-Print output omits the reader's transient quiz response.
+Do not make audit completeness look like repeated interface content. Merge
+changed-file source metadata into the changed-file table, keep other sources in
+a separate small table, and group exclusions that share a reason.
 
-It shows every review item, microworld detail, question, answer, and supporting
-evidence regardless of the current disclosure state.
-
-The **Evidence and scope** section is a dense reference appendix.
-
-Keep the whole section open initially so the available groups remain visible.
-
-Its source groups, context checks, scope limits, checked-file group, and
-artifact details must open independently and start closed.
-
-Use native disclosure controls so they work without JavaScript.
-
-Opening a fragment link must reveal every disclosure that contains its target.
-
-Code markup must contain explicit line separators.
-
-One source line must remain one visible line even without layout styles; long
-lines scroll inside the code surface instead of merging with adjacent lines.
-
-Do not make audit completeness look like repeated interface content.
-
-Merge changed-file source metadata into the changed-file table, keep other
-sources in a separate small table, and group exclusions with the same reason.
-
-Keep the collapsed interface compact.
-
-A closed disclosure occupies only its summary row and borders. It must not
-reserve body padding or leave unused parent spacing below the row.
+Keep the collapsed interface compact. A closed disclosure occupies only its
+summary row and borders; it does not reserve body padding or leave unused parent
+spacing.
 
 Keep the understanding-check subsection visible when it is present. Let each
 question and its answer open independently instead of collapsing the whole
@@ -655,12 +805,9 @@ subsection.
 
 Expanded details must still account for every source, file, and limit.
 
-Do not show a section-copy control while artifacts use temporary local paths.
-
-Stable section IDs remain available for navigation.
-
-Add copying only when Hope has a portable publication URL and can show visible
-success feedback.
+Keep stable section IDs available for navigation. Do not show a section-copy
+control while artifacts use temporary local paths; add copying only when Hope
+has a portable publication URL and can show visible success feedback.
 
 Do not add task completion, assignment, comments, or hidden persistence.
 
@@ -696,6 +843,10 @@ Repository, provider, and model content is untrusted.
 Each renderer inserts authored prose as text and never accepts authored HTML,
 CSS, JavaScript, or SVG. Diff separately validates the source URLs it owns;
 Align renders only `http` and `https` evidence locations as links.
+
+Diff inserts repository text only as escaped content. It keeps source lines
+explicit and distinguishes patch additions, deletions, context, and hunk
+headers without a stateful language parser.
 
 Align may embed raster design-direction images only after its runtime verifies
 their supported signature, dimensions, and size. It never treats an authored
