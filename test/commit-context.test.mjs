@@ -106,3 +106,27 @@ test("Commit Diff 맥락이 누적 크기 제한을 명시적인 제한으로 �
   assert.equal(result[0].kind, "context-unavailable");
   assert.equal(result[0].reasonKind, "context-size-limit");
 });
+
+test("용량 초과로 제외한 맥락은 합계에 넣지 않고 남은 파일을 수집한다", async () => {
+  const fixture = await repositoryFixture();
+  const contents = ["가나다라", "hello", "가ab", "x"];
+  const paths = contents.map((_, index) => `context-${index}.txt`);
+  for (const [index, path] of paths.entries()) {
+    await writeFile(join(fixture.repository, path), contents[index]);
+  }
+  git(fixture.repository, "add", ...paths);
+  git(fixture.repository, "commit", "--quiet", "-m", "맥락 용량 검증 파일 추가");
+  const head = git(fixture.repository, "rev-parse", "HEAD");
+  const result = await collectLocalGitContext(
+    snapshot({ ...fixture, head }),
+    paths.map((path) => ({ path, revision: "head" })),
+    { existingBytes: LIMITS.contextBodyTotalBytes - 10 },
+  );
+
+  assert.deepEqual(result.map(({ kind }) => kind), [
+    "context-unavailable", "context-file", "context-file", "context-unavailable",
+  ]);
+  assert.equal(result[0].reasonKind, "context-size-limit");
+  assert.equal(result[3].reasonKind, "context-size-limit");
+  assert.deepEqual(result.slice(1, 3).map(({ text }) => text), ["hello", "가ab"]);
+});

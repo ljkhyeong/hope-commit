@@ -17,6 +17,7 @@ import {
   resolveLocalCommitTarget,
 } from "../plugins/hope/skills/commit/scripts/target.mjs";
 import { buildInspectionPages } from "../plugins/hope/skills/commit/scripts/run.mjs";
+import { patchLineLocations } from "../plugins/hope/skills/commit/scripts/code-evidence.mjs";
 
 const execFile = promisify(execFileCallback);
 
@@ -141,6 +142,32 @@ test("단독 CR은 표시하되 원본과 패치의 줄 수를 늘리지 않는�
   const patch = snapshot.sources.find((source) => source.kind === "patch").text;
   assert.match(patch, /@@ -1,2 \+1,2 @@\n first\\u000Dfragment\n-old\n\+changed\n/u);
   assert.doesNotMatch(patch, /\r/u);
+});
+
+test("Git 빈 줄 표시 설정과 관계없이 같은 패치와 줄 번호를 수집한다", async (t) => {
+  const fixture = await repositoryFixture();
+  t.after(async () => rm(fixture.repository, { force: true, recursive: true }));
+  const path = join(fixture.repository, "example.txt");
+  await writeFile(path, "start();\n\nold();\nend();\n");
+  git(fixture.repository, "add", "example.txt");
+  git(fixture.repository, "commit", "-m", "빈 줄 포함 코드 추가");
+  await writeFile(path, "start();\n\nnext();\nend();\n");
+  git(fixture.repository, "add", "example.txt");
+  git(fixture.repository, "commit", "-m", "빈 줄 뒤의 코드 변경");
+  const commit = git(fixture.repository, "rev-parse", "HEAD");
+  const target = { commit, repositoryPath: fixture.repository };
+  git(fixture.repository, "config", "diff.suppressBlankEmpty", "false");
+  const baseline = await collectLocalGitCommit(target);
+  git(fixture.repository, "config", "diff.suppressBlankEmpty", "true");
+  const snapshot = await collectLocalGitCommit(target);
+  const patch = snapshot.sources.find((source) => source.kind === "patch").text;
+
+  assert.equal(patch, baseline.sources.find((source) => source.kind === "patch").text);
+  const lines = patch.split("\n");
+  const locations = patchLineLocations(lines);
+  assert.deepEqual(locations[lines.indexOf("-old();")], { kind: "removed", oldLine: 3 });
+  assert.deepEqual(locations[lines.indexOf("+next();")], { kind: "added", newLine: 3 });
+  assert.equal(git(fixture.repository, "config", "--get", "diff.suppressBlankEmpty"), "true");
 });
 
 test("서명 표시 설정이 켜져 있어도 수집 중 서명 확인 프로그램을 실행하지 않는다", async (t) => {

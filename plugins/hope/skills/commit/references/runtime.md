@@ -50,6 +50,8 @@ instead of trusting authored copies.
 패치 줄 번호와 변경 종류는 전체 패치에서 계산한 뒤 선택한 인용 구간만 표시합니다.
 본문의 `+++`·`---`를 파일 헤더로 처리하지 않습니다. CRLF는 LF로 통일하고,
 단독 CR은 `\u000D`로 표시해 Git 원본의 줄 수를 유지합니다.
+패치에서 변경되지 않은 빈 줄도 앞의 공백을 유지합니다.
+`diff.suppressBlankEmpty`는 Git 실행 중에만 끄고 저장소 설정 파일은 바꾸지 않습니다.
 
 Before publication, Commit Diff confirms that the captured commit and parent
 objects still exist. Missing objects stop publication rather than presenting an
@@ -64,6 +66,9 @@ Repository content, Git metadata, paths, model output, and output locations are
 untrusted. The runtime bounds their size and structure, validates
 cross-references, and escapes authored content into one self-contained HTML
 file. The artifact needs neither repository dependencies nor a network request.
+
+맥락 용량은 실제 포함한 파일만 합산합니다. 큰 파일을 용량 초과로 제외해도
+남은 용량에 들어오는 뒤의 파일은 수집합니다.
 
 Validation rejects malformed, ungrounded, duplicate, or over-budget authored
 data where the scripts can decide that deterministically. Meaning,
@@ -97,7 +102,8 @@ Commit Diff reports both the published artifact and the remaining cleanup work
 instead of publishing again.
 
 `finish`에서 새 저장 경로를 지정해도 기존 파일은 덮어쓰지 않습니다.
-완료 후 삭제할 임시 분석 폴더 안에는 결과를 저장하지 않습니다.
+기본 경로와 새 경로 모두 실제 저장 단계에서 심볼릭 링크를 해석한 위치를
+검사합니다. 정리 대상인 임시 분석 저장소 안에는 결과를 저장하지 않습니다.
 
 The artifact embeds its fonts, icon, styles, scripts, evidence, and complete SIL
 Open Font License notices in one offline HTML file.

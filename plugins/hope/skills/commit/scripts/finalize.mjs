@@ -10,6 +10,7 @@ export async function preflightReviewOutput(outputPath) {
 
 export async function finalizeReview(bytes, {
   artifactDigest,
+  excludedDirectory,
   linkFile,
   outputPath,
   revalidatedAt,
@@ -19,6 +20,7 @@ export async function finalizeReview(bytes, {
 } = {}) {
   const target = await publishArtifact(bytes, {
     directoryPrefix: "hope-commit-review-",
+    excludedDirectory,
     fileName: "hope-commit-review.html",
     linkFile,
     noun: "output",

@@ -155,8 +155,8 @@ export async function collectLocalGitContext(snapshot, requests, {
   let total = existingBytes;
   return Object.freeze(collected.map((candidate) => {
     if (candidate.kind !== "context-file") return candidate;
-    total += Buffer.byteLength(candidate.text, "utf8");
-    if (total > LIMITS.contextBodyTotalBytes) {
+    const candidateBytes = Buffer.byteLength(candidate.text, "utf8");
+    if (total + candidateBytes > LIMITS.contextBodyTotalBytes) {
       return unavailable(
         candidate.path,
         candidate.revision,
@@ -164,6 +164,7 @@ export async function collectLocalGitContext(snapshot, requests, {
         `Collected context exceeds Hope Commit's ${LIMITS.contextBodyTotalBytes}-byte limit`,
       );
     }
+    total += candidateBytes;
     return candidate;
   }));
 }

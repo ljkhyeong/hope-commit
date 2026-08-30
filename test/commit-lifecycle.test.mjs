@@ -2,10 +2,13 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import {
   access,
+  mkdir,
   open,
   readFile,
   readdir,
+  rename,
   rm,
+  symlink,
   unlink,
   writeFile,
 } from "node:fs/promises";
@@ -450,6 +453,39 @@ test("저장 경로 충돌 뒤 분석을 보존하고 새 경로로 발행한다
   assert.equal(await readFile(outputPath, "utf8"), "다른 작업에서 만든 파일");
   await assert.rejects(access(prepared.path), (error) => error.code === "ENOENT");
 });
+
+for (const overrideOutput of [false, true]) {
+  test(`${overrideOutput ? "새" : "기본"} 저장 폴더가 임시 분석 폴더를 가리키면 분석을 보존하고 중단한다`, async () => {
+    const temporaryRoot = await createTestTemporaryDirectory("hope-commit-output-redirect-");
+    const outputDirectory = join(temporaryRoot, "output");
+    const originalDirectory = join(temporaryRoot, "original-output");
+    await mkdir(outputDirectory);
+    const outputPath = join(outputDirectory, "review.html");
+    const { prepared, run, dependencies } = await createInspectedCommitRun(temporaryRoot, { outputPath });
+    const analysis = `${JSON.stringify(makeLifecycleAnalysis(run), null, 2)}\n`;
+    await writeFile(prepared.analysisPath, analysis, { flag: "wx", mode: 0o600 });
+    await runCommitCommand(["validate", "--run", prepared.path], dependencies);
+    const runEntries = await readdir(prepared.path);
+
+    await rename(outputDirectory, originalDirectory);
+    await symlink(prepared.path, outputDirectory, process.platform === "win32" ? "junction" : "dir");
+    const arguments_ = ["finish", "--run", prepared.path];
+    if (overrideOutput) arguments_.push("--output", outputPath);
+    await assert.rejects(runCommitCommand(arguments_, dependencies), (error) => (
+      error.code === "HOPE_DIFF_PUBLICATION_RETRYABLE" && error.canRetry === true
+    ));
+    assert.equal(await readFile(prepared.analysisPath, "utf8"), analysis);
+    assert.deepEqual(await readdir(prepared.path), runEntries);
+    await assert.rejects(access(outputPath), (error) => error.code === "ENOENT");
+
+    await unlink(outputDirectory);
+    await rename(originalDirectory, outputDirectory);
+    const finished = await runCommitCommand(arguments_, dependencies);
+    assert.equal(finished.outputPath, outputPath);
+    assert.match(await readFile(outputPath, "utf8"), /<!doctype html>/iu);
+    await assert.rejects(access(prepared.path), (error) => error.code === "ENOENT");
+  });
+}
 
 test("finish 외의 실행 명령은 저장 경로 변경을 받지 않는다", () => {
   for (const command of ["inspect-window", "checkpoint-window", "ledger", "validate", "cancel"]) {

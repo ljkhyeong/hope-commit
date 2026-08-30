@@ -11,7 +11,7 @@ import {
   unlink,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { basename, dirname, isAbsolute, join, resolve } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 async function syncDirectory(path) {
   let handle;
@@ -114,6 +114,7 @@ export async function preflightArtifactOutput(outputPath, {
 
 export async function publishArtifact(bytes, {
   directoryPrefix = "hope-artifact-",
+  excludedDirectory,
   fileName = "hope-artifact.html",
   linkFile = link,
   noun = "artifact",
@@ -147,6 +148,16 @@ export async function publishArtifact(bytes, {
   let published = false;
   let written;
   try {
+    if (excludedDirectory) {
+      const relativePath = relative(excludedDirectory, target);
+      if (
+        relativePath !== ".."
+        && !relativePath.startsWith(`..${sep}`)
+        && !isAbsolute(relativePath)
+      ) {
+        throw new Error("리뷰는 임시 분석 저장소 밖에 저장해야 합니다.");
+      }
+    }
     written = await writeExclusive(staging, bytes);
     try {
       await linkFile(staging, target);

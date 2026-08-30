@@ -1,5 +1,5 @@
 import { unlink } from "node:fs/promises";
-import { isAbsolute, relative, sep } from "node:path";
+import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { resolveDisplayOptions } from "./locales/index.mjs";
@@ -674,21 +674,10 @@ export async function finishDiff(runPath, { outputPath, ...dependencies } = {}) 
       await mutationClaim.assertOwned();
       let ticket;
       try {
-        let publicationOutputPath = run.manifest.outputPath;
-        if (outputPath !== undefined) {
-          publicationOutputPath = await (
-            dependencies.preflightOutput ?? preflightReviewOutput
-          )(outputPath);
-          if (publicationOutputPath) {
-            const fromRun = relative(run.path, publicationOutputPath);
-            if (fromRun !== ".." && !fromRun.startsWith(`..${sep}`) && !isAbsolute(fromRun)) {
-              throw new Error("정리할 임시 분석 폴더 밖의 저장 경로를 선택하세요.");
-            }
-          }
-        }
         ticket = await (dependencies.finalize ?? finalizeReview)(rendered.bytes, {
           artifactDigest: rendered.digest,
-          outputPath: publicationOutputPath,
+          excludedDirectory: dirname(run.path),
+          outputPath: outputPath ?? run.manifest.outputPath,
           revalidatedAt: revalidation.revalidatedAt,
           runId: run.manifest.runId,
           snapshotDigest: run.snapshot.digest,

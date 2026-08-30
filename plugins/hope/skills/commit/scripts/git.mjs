@@ -119,6 +119,8 @@ export async function runGit(repositoryPath, arguments_, {
     const commandArguments = [
       "--no-replace-objects",
       "--no-lazy-fetch",
+      "-c",
+      "diff.suppressBlankEmpty=false",
       "-C",
       repositoryPath,
       "--literal-pathspecs",
