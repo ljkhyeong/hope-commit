@@ -11,6 +11,7 @@ import {
   collectLocalGitCommit,
   readGitBlob,
   revalidateLocalGitSnapshot,
+  resolveCommit,
 } from "../plugins/hope/skills/commit/scripts/git.mjs";
 import {
   parseCommitTargetArgument,
@@ -100,6 +101,62 @@ test("resolves a short commit ID and captures immutable commit blobs", async (t)
   assert.match(patch, /\+after/u);
   assert.doesNotMatch(patch, /dirty worktree/u);
   assert.equal((await revalidateLocalGitSnapshot(snapshot)).matches, true);
+});
+
+for (const [label, refCommand] of [["브랜치", "branch"], ["태그", "tag"]]) {
+  test(`짧은 커밋 ID와 같은 이름의 ${label}가 있어도 해당 커밋 객체를 검토한다`, async (t) => {
+    const fixture = await repositoryFixture();
+    t.after(async () => rm(fixture.repository, { force: true, recursive: true }));
+    const shortId = fixture.head.slice(0, 8);
+    git(fixture.repository, refCommand, shortId, fixture.root);
+    const request = { commit: shortId, repositoryPath: fixture.repository };
+
+    const target = await resolveLocalCommitTarget(request);
+    const snapshot = await collectLocalGitCommit(request);
+    assert.equal(target.commit, fixture.head);
+    assert.equal(snapshot.commit.id, fixture.head);
+    assert.equal(snapshot.commit.parent, fixture.root);
+    assert.match(snapshot.sources.find((source) => source.kind === "patch")?.text, /\+after/u);
+  });
+}
+
+test("일치하는 커밋 객체가 없으면 같은 이름의 태그를 대신 검토하지 않는다", async (t) => {
+  const fixture = await repositoryFixture();
+  t.after(async () => rm(fixture.repository, { force: true, recursive: true }));
+  const missingId = "deadbeef";
+  assert.equal(git(fixture.repository, "rev-parse", `--disambiguate=${missingId}`), "");
+  git(fixture.repository, "tag", missingId, fixture.head);
+  const request = { commit: missingId, repositoryPath: fixture.repository };
+
+  await assert.rejects(resolveLocalCommitTarget(request), /일치하는 커밋 객체가 없습니다/u);
+  await assert.rejects(collectLocalGitCommit(request), /일치하는 커밋 객체가 없습니다/u);
+});
+
+test("접두사가 같은 객체 중 커밋이 하나일 때만 선택한다", async () => {
+  const candidates = [`abcd${"1".repeat(36)}`, `abcd${"2".repeat(36)}`];
+  let types = ["commit", "blob"];
+  const options = {
+    exec: async () => ({ stdout: `${candidates.join("\n")}\n` }),
+    execInput: async () => ({ stdout: `${types.join("\n")}\n` }),
+  };
+  assert.equal(await resolveCommit("repository", "ABCD", options), candidates[0]);
+  types = ["commit", "commit"];
+  await assert.rejects(resolveCommit("repository", "abcd", options), /더 긴 커밋 ID/u);
+});
+
+test("파일과 주석 태그의 객체 ID를 커밋 ID로 받지 않는다", async (t) => {
+  const fixture = await repositoryFixture();
+  t.after(async () => rm(fixture.repository, { force: true, recursive: true }));
+  git(fixture.repository, "tag", "-a", "review", "-m", "주석 태그", fixture.head);
+  const objects = [
+    git(fixture.repository, "rev-parse", "HEAD:example.txt"),
+    git(fixture.repository, "rev-parse", "refs/tags/review"),
+  ];
+  for (const commit of objects) {
+    const request = { commit, repositoryPath: fixture.repository };
+    await assert.rejects(resolveLocalCommitTarget(request), /일치하는 커밋 객체가 없습니다/u);
+    await assert.rejects(collectLocalGitCommit(request), /일치하는 커밋 객체가 없습니다/u);
+  }
 });
 
 for (const [label, suffix] of [["공백", " "], ["줄바꿈", "\n"]]) {
