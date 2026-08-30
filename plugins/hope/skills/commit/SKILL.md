@@ -77,6 +77,10 @@ Tell the worker to read:
 
 The fresh worker owns the run from `prepare` through `finish` or `cancel`.
 
+워커를 시작하기 전에 리뷰 생성에는 현재 AI 서비스의 데이터 정책이 적용된다고
+안내하세요. "오프라인"은 생성된 HTML을 네트워크 없이 읽을 수 있다는 뜻입니다.
+비공개 코드가 분석 중에도 로컬 장치에만 머문다고 안내하지 마세요.
+
 ## Report the result
 
 On success, report the repository, exact commit and selected parent, result

@@ -5,9 +5,11 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
 import { promisify } from "node:util";
+import { pathToFileURL } from "node:url";
 
 import {
   collectLocalGitCommit,
+  readGitBlob,
   revalidateLocalGitSnapshot,
 } from "../plugins/hope/skills/commit/scripts/git.mjs";
 import {
@@ -116,6 +118,83 @@ test("compares a root commit with the empty tree", async (t) => {
   assert.equal(snapshot.commit.parentCount, 0);
   assert.equal(snapshot.files[0].providerStatus, "added");
   assert.match(snapshot.sources.find((source) => source.kind === "patch")?.text, /\+before/u);
+});
+
+test("얕은 복제의 누락된 부모를 루트 커밋으로 처리하지 않는다", async (t) => {
+  const fixture = await repositoryFixture();
+  const shallow = await mkdtemp(join(tmpdir(), "hope-commit-shallow-"));
+  t.after(async () => {
+    await rm(shallow, { force: true, recursive: true });
+    await rm(fixture.repository, { force: true, recursive: true });
+  });
+  git(fixture.repository, "clone", "--quiet", "--depth=1",
+    pathToFileURL(fixture.repository).href, shallow);
+  const target = { commit: fixture.head, repositoryPath: shallow };
+
+  await assert.rejects(collectLocalGitCommit(target), /부모 커밋.*로컬/u);
+
+  git(shallow, "fetch", "--quiet", "--deepen=1");
+  const snapshot = await collectLocalGitCommit(target);
+  assert.equal(snapshot.commit.parent, fixture.root);
+  assert.equal(snapshot.files[0].providerStatus, "modified");
+});
+
+test("대체 객체가 있어도 원본 커밋과 파일을 읽고 재검증한다", async (t) => {
+  const fixture = await repositoryFixture();
+  t.after(async () => rm(fixture.repository, { force: true, recursive: true }));
+  await writeFile(join(fixture.repository, "example.txt"), "replacement content\n");
+  git(fixture.repository, "add", "example.txt");
+  git(fixture.repository, "commit", "-m", "대체 커밋");
+  const replacement = git(fixture.repository, "rev-parse", "HEAD");
+  git(fixture.repository, "replace", fixture.head, replacement);
+
+  const target = await resolveLocalCommitTarget({
+    commit: fixture.head,
+    repositoryPath: fixture.repository,
+  });
+  const snapshot = await collectLocalGitCommit(target);
+  assert.equal(snapshot.commit.id, fixture.head);
+  assert.equal(snapshot.commit.subject, "Change example");
+  assert.equal(snapshot.commit.parent, fixture.root);
+  assert.match(snapshot.sources.find((source) => source.kind === "patch")?.text, /\+after/u);
+  assert.equal((await readGitBlob(fixture.repository, fixture.head, "example.txt")).text, "after\n");
+  assert.equal((await revalidateLocalGitSnapshot(snapshot)).matches, true);
+});
+
+test("로컬 바이너리 속성이 커밋된 텍스트의 줄 수와 패치를 숨기지 않는다", async (t) => {
+  const fixture = await repositoryFixture();
+  t.after(async () => rm(fixture.repository, { force: true, recursive: true }));
+  const target = { commit: fixture.head, repositoryPath: fixture.repository };
+  const baseline = await collectLocalGitCommit(target);
+  await writeFile(join(fixture.repository, ".gitattributes"), "*.txt -diff\n");
+  await writeFile(join(fixture.repository, ".git", "info", "attributes"), "*.txt -diff\n");
+
+  const snapshot = await collectLocalGitCommit(target);
+  assert.deepEqual(snapshot.files, baseline.files);
+  assert.deepEqual(snapshot.sources, baseline.sources);
+});
+
+test("바이너리 속성이 있는 이름 변경도 수집하되 실제 바이너리 본문은 제외한다", async (t) => {
+  const fixture = await repositoryFixture();
+  t.after(async () => rm(fixture.repository, { force: true, recursive: true }));
+  git(fixture.repository, "mv", "example.txt", "이름 변경.txt");
+  await writeFile(join(fixture.repository, "이름 변경.txt"), "after\n더\n");
+  await writeFile(join(fixture.repository, "binary.txt"), Buffer.from([0, 1, 2]));
+  git(fixture.repository, "add", "--", "이름 변경.txt", "binary.txt");
+  git(fixture.repository, "commit", "-m", "파일 이름과 내용을 변경함");
+  const target = {
+    commit: git(fixture.repository, "rev-parse", "HEAD"),
+    repositoryPath: fixture.repository,
+  };
+  const baseline = await collectLocalGitCommit(target);
+  await writeFile(join(fixture.repository, ".gitattributes"), "*.txt -diff\n");
+
+  const snapshot = await collectLocalGitCommit(target);
+  assert.deepEqual(snapshot.files, baseline.files);
+  assert.deepEqual(snapshot.sources, baseline.sources);
+  assert.equal(snapshot.files.find((file) => file.path === "이름 변경.txt").previousPath, "example.txt");
+  assert.equal(snapshot.files.find((file) => file.path === "binary.txt").bodyState, "metadata-only");
+  assert.equal((await readGitBlob(fixture.repository, target.commit, "binary.txt")).state, "binary");
 });
 
 test("selects an explicit merge parent", async (t) => {

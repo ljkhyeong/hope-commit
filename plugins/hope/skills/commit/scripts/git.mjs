@@ -12,6 +12,7 @@ const execFile = promisify(execFileCallback);
 const GIT_TIMEOUT_MS = 30_000;
 const GIT_MAX_BUFFER = 16 * 1024 * 1024;
 const GIT_BATCH_BODY_BYTES = 4 * 1024 * 1024;
+const GIT_DIFF_OPTIONS = ["--no-ext-diff", "--no-textconv", "--no-color", "--find-renames"];
 
 function execFileWithInput(command, arguments_, options, input) {
   return new Promise((resolvePromise, rejectPromise) => {
@@ -82,6 +83,7 @@ async function runGit(repositoryPath, arguments_, {
 } = {}) {
   try {
     const commandArguments = [
+      "--no-replace-objects",
       "-C",
       repositoryPath,
       "--literal-pathspecs",
@@ -154,12 +156,14 @@ async function resolveParent(repositoryPath, commit, parentNumber, options = {})
   if (!Number.isSafeInteger(parentNumber) || parentNumber < 1) {
     throw new TypeError("Hope Commit parent number must be a positive integer");
   }
-  const line = cleanText(await runGit(
+  const rawCommit = await runGit(
     repositoryPath,
-    ["rev-list", "--parents", "-n", "1", commit],
+    ["cat-file", "commit", commit],
     options,
-  )).trim();
-  const [, ...parents] = line.split(/\s+/u);
+  );
+  const parents = rawCommit.split("\n\n", 1)[0].split("\n")
+    .filter((line) => line.startsWith("parent "))
+    .map((line) => validateObjectId(line.slice(7), "parent"));
   if (parents.length === 0) {
     if (parentNumber !== 1) {
       throw new Error("A root commit only supports parent 1 (the empty tree)");
@@ -169,8 +173,15 @@ async function resolveParent(repositoryPath, commit, parentNumber, options = {})
   if (parentNumber > parents.length) {
     throw new Error(`Commit has ${parents.length} parent(s); parent ${parentNumber} is unavailable`);
   }
+  const parent = parents[parentNumber - 1];
+  if (await tryGit(repositoryPath, ["cat-file", "-e", `${parent}^{commit}`], options) === undefined) {
+    throw new Error(
+      `선택한 부모 커밋 ${parent}을 로컬에서 찾을 수 없습니다. `
+      + "얕은 복제라면 Git 이력을 더 받은 뒤 다시 실행하세요.",
+    );
+  }
   return Object.freeze({
-    parent: validateObjectId(parents[parentNumber - 1], "parent"),
+    parent,
     parentCount: parents.length,
   });
 }
@@ -259,7 +270,11 @@ function parseNumstat(buffer) {
     if (counts.has(key)) {
       throw new Error("Git returned duplicate changed-line counts");
     }
-    counts.set(key, Object.freeze({ additions, deletions }));
+    counts.set(key, Object.freeze({
+      additions,
+      binary: fields[0] === "-",
+      deletions,
+    }));
   }
   return counts;
 }
@@ -328,6 +343,17 @@ function blobDescriptor(entries, path) {
   });
 }
 
+function decodeBlob(bytes) {
+  if (!isUtf8(bytes) || bytes.includes(0)) {
+    return Object.freeze({
+      reason: "파일에 NUL 바이트가 있거나 올바른 UTF-8 텍스트가 아닙니다.",
+      reasonKind: "invalid-text",
+      state: "binary",
+    });
+  }
+  return Object.freeze({ state: "text", text: cleanText(bytes.toString("utf8")) });
+}
+
 function parseBlobBatch(output, requested) {
   if (!Buffer.isBuffer(output)) {
     throw new TypeError("Hope Commit needs byte-safe Git blob output");
@@ -351,13 +377,7 @@ function parseBlobBatch(output, requested) {
       throw new Error("Git returned a partial blob batch body");
     }
     const bytes = output.subarray(bodyStart, bodyEnd);
-    blobs.set(objectId, isUtf8(bytes)
-      ? Object.freeze({ state: "text", text: cleanText(bytes.toString("utf8")) })
-      : Object.freeze({
-        reason: "The file is not UTF-8 text",
-        reasonKind: "invalid-text",
-        state: "binary",
-      }));
+    blobs.set(objectId, decodeBlob(bytes));
     cursor = bodyEnd + 1;
   }
   if (cursor !== output.length) {
@@ -442,14 +462,7 @@ async function readBlob(repositoryPath, revision, path, options = {}) {
   if (!Buffer.isBuffer(bytes) || bytes.length !== size) {
     throw new Error(`Git returned a partial blob for ${path}`);
   }
-  if (!isUtf8(bytes)) {
-    return Object.freeze({
-      reason: "The file is not UTF-8 text",
-      reasonKind: "invalid-text",
-      state: "binary",
-    });
-  }
-  return Object.freeze({ state: "text", text: cleanText(bytes.toString("utf8")) });
+  return decodeBlob(bytes);
 }
 
 function source(id, kind, text, extra = {}) {
@@ -537,7 +550,7 @@ export async function collectLocalGitCommit(target, {
 
   const rawStatus = await runGit(
     repositoryPath,
-    ["diff", "--name-status", "-z", "--find-renames", parent, commit],
+    ["diff", ...GIT_DIFF_OPTIONS, "--name-status", "-z", parent, commit],
     { ...options, encoding: null },
   );
   const changed = parseNameStatus(rawStatus);
@@ -554,7 +567,7 @@ export async function collectLocalGitCommit(target, {
   const [rawCounts, beforeEntries, afterEntries] = await Promise.all([
     runGit(
       repositoryPath,
-      ["diff", "--numstat", "-z", "--find-renames", parent, commit],
+      ["diff", ...GIT_DIFF_OPTIONS, "--numstat", "-z", parent, commit],
       { ...options, encoding: null },
     ),
     readTreeEntries(repositoryPath, parent, beforePaths, options),
@@ -597,8 +610,8 @@ export async function collectLocalGitCommit(target, {
     },
   ];
   let totalBodyBytes = 0;
-  let totalChangedLines = 0;
   const files = [];
+  const textPatchesWithBinaryCounts = [];
 
   for (const [index, changedFile] of changed.entries()) {
     const id = `file-${index + 1}`;
@@ -609,7 +622,6 @@ export async function collectLocalGitCommit(target, {
     )) ?? Object.freeze({ additions: 0, deletions: 0 });
     const before = beforeValues[index];
     const after = afterValues[index];
-    totalChangedLines += counts.additions + counts.deletions;
     const texts = [before.text, after.text].filter(Boolean);
     const redaction = redactionKind(changedFile.path, texts)
       ?? redactionKind(beforePath, texts);
@@ -632,14 +644,14 @@ export async function collectLocalGitCommit(target, {
         : "included";
     const sourceIds = [];
     if (bodyState === "included") {
-      const patch = cleanText(await runGit(
+      const rawPatch = await runGit(
         repositoryPath,
         [
           "diff",
-          "--no-ext-diff",
-          "--no-textconv",
-          "--no-color",
-          "--find-renames",
+          ...GIT_DIFF_OPTIONS,
+          "--text",
+          "--src-prefix=a/",
+          "--dst-prefix=b/",
           "--unified=80",
           parent,
           commit,
@@ -647,8 +659,10 @@ export async function collectLocalGitCommit(target, {
           ...[changedFile.previousPath, changedFile.path].filter(Boolean),
         ],
         options,
-      ));
+      );
+      const patch = cleanText(rawPatch);
       if (patch) {
+        if (counts.binary) textPatchesWithBinaryCounts.push(rawPatch);
         sourceIds.push(addSource(sources, "patch", patch, {
           fileId: id,
           path: changedFile.path,
@@ -678,6 +692,25 @@ export async function collectLocalGitCommit(target, {
       sourceIds: sourceIds.filter(Boolean),
     }));
   }
+  if (textPatchesWithBinaryCounts.length > 0) {
+    // --numstat은 패치를 적용하지 않고 줄 수만 반환한다.
+    const patchCounts = parseNumstat(await runGit(
+      repositoryPath,
+      ["apply", "--numstat", "-z", "-"],
+      { ...options, encoding: null, input: Buffer.from(textPatchesWithBinaryCounts.join("\n")) },
+    ));
+    for (const [index, file] of files.entries()) {
+      const counts = patchCounts.get(changedFileKey(file.path));
+      if (counts) {
+        files[index] = Object.freeze({
+          ...file,
+          additions: counts.additions,
+          deletions: counts.deletions,
+        });
+      }
+    }
+  }
+  const totalChangedLines = files.reduce((total, file) => total + file.additions + file.deletions, 0);
   if (totalChangedLines > LIMITS.changedLines) {
     throw new Error(
       `Commit has ${totalChangedLines} changed lines; Hope Commit supports ${LIMITS.changedLines}`,

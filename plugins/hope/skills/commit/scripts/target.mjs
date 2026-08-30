@@ -28,12 +28,12 @@ export async function resolveLocalCommitTarget({
   let resolvedCommit;
   try {
     const [rootResult, commitResult] = await Promise.all([
-      exec("git", ["-C", requestedPath, "rev-parse", "--show-toplevel"], {
+      exec("git", ["--no-replace-objects", "-C", requestedPath, "rev-parse", "--show-toplevel"], {
         encoding: "utf8",
         maxBuffer: 64 * 1024,
         timeout: GIT_TIMEOUT_MS,
       }),
-      exec("git", ["-C", requestedPath, "rev-parse", "--verify", `${commit}^{commit}`], {
+      exec("git", ["--no-replace-objects", "-C", requestedPath, "rev-parse", "--verify", `${commit}^{commit}`], {
         encoding: "utf8",
         maxBuffer: 64 * 1024,
         timeout: GIT_TIMEOUT_MS,
