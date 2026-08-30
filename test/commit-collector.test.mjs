@@ -122,6 +122,27 @@ test("compares a root commit with the empty tree", async (t) => {
   assert.equal((await revalidateLocalGitSnapshot(snapshot)).matches, true);
 });
 
+test("단독 CR은 표시하되 원본과 패치의 줄 수를 늘리지 않는다", async (t) => {
+  const fixture = await repositoryFixture();
+  t.after(async () => rm(fixture.repository, { force: true, recursive: true }));
+  git(fixture.repository, "config", "core.autocrlf", "false");
+  const path = join(fixture.repository, "example.txt");
+  await writeFile(path, "first\rfragment\nold\r\n");
+  git(fixture.repository, "add", "example.txt");
+  git(fixture.repository, "commit", "-m", "CR 포함 본문 추가");
+  await writeFile(path, "first\rfragment\nchanged\r\n");
+  git(fixture.repository, "add", "example.txt");
+  git(fixture.repository, "commit", "-m", "CR 포함 본문 변경");
+  const commit = git(fixture.repository, "rev-parse", "HEAD");
+
+  const blob = await readGitBlob(fixture.repository, commit, "example.txt");
+  assert.equal(blob.text, "first\\u000Dfragment\nchanged\n");
+  const snapshot = await collectLocalGitCommit({ commit, repositoryPath: fixture.repository });
+  const patch = snapshot.sources.find((source) => source.kind === "patch").text;
+  assert.match(patch, /@@ -1,2 \+1,2 @@\n first\\u000Dfragment\n-old\n\+changed\n/u);
+  assert.doesNotMatch(patch, /\r/u);
+});
+
 test("서명 표시 설정이 켜져 있어도 수집 중 서명 확인 프로그램을 실행하지 않는다", async (t) => {
   const fixture = await repositoryFixture();
   t.after(async () => rm(fixture.repository, { force: true, recursive: true }));

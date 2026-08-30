@@ -100,6 +100,10 @@ run path. For `HOPE_ANALYSIS_INVALID`, repair through `validate`. For a
 revalidation or publication retry, restore the reported prerequisite and retry
 `finish` without preparing again or rewriting validated analysis.
 
+저장 경로가 충돌하면 사용자가 선택한 새 경로로
+`finish --run <run-path> --output <new-path>`를 실행하세요. 검증한 분석을
+다시 작성할 필요는 없습니다. `--output`을 생략하면 준비할 때 선택한 경로를 씁니다.
+
 If `HOPE_DIFF_CLEANUP_FAILED` returns an output path, the artifact already
 exists. Report it and the cleanup failure; do not retry publication. Other
 errors are final for this invocation. If the same retryable repository access

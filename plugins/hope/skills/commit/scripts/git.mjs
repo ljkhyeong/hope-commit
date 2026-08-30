@@ -69,7 +69,8 @@ function byteLength(value) {
 
 function cleanText(value) {
   return exposeBidiControls(String(value ?? "")
-    .replace(/\r\n?/gu, "\n")
+    .replace(/\r\n/gu, "\n")
+    .replace(/\r/gu, "\\u000D")
     .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/gu, "\uFFFD"));
 }
 

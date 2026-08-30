@@ -47,6 +47,10 @@ splits it into bounded rendered references without dropping selected lines. It
 derives file accounting, scope, links, source excerpts, and resource counters
 instead of trusting authored copies.
 
+패치 줄 번호와 변경 종류는 전체 패치에서 계산한 뒤 선택한 인용 구간만 표시합니다.
+본문의 `+++`·`---`를 파일 헤더로 처리하지 않습니다. CRLF는 LF로 통일하고,
+단독 CR은 `\u000D`로 표시해 Git 원본의 줄 수를 유지합니다.
+
 Before publication, Commit Diff confirms that the captured commit and parent
 objects still exist. Missing objects stop publication rather than presenting an
 unverifiable review.
@@ -91,6 +95,9 @@ A retryable repository or publication failure preserves the validated run.
 After successful publication, Commit Diff removes it. If cleanup then fails,
 Commit Diff reports both the published artifact and the remaining cleanup work
 instead of publishing again.
+
+`finish`에서 새 저장 경로를 지정해도 기존 파일은 덮어쓰지 않습니다.
+완료 후 삭제할 임시 분석 폴더 안에는 결과를 저장하지 않습니다.
 
 The artifact embeds its fonts, icon, styles, scripts, evidence, and complete SIL
 Open Font License notices in one offline HTML file.

@@ -8,6 +8,7 @@ import {
   REVIEW_KINDS,
 } from "./constants.mjs";
 import { splitEvidenceRange } from "../../../review-core/evidence-range.mjs";
+import { patchLineLocations } from "./code-evidence.mjs";
 import { deriveReviewResult, sortReviewItems } from "../../../review-core/derive.mjs";
 import {
   microworldSelections,
@@ -231,6 +232,12 @@ function evidenceReferences(value, name, sourceMap) {
         .slice(range.startLine - 1, range.endLine)
         .join("\n"),
       fileId: source.fileId,
+      ...(source.kind === "patch" ? {
+        patchLocations: Object.freeze(
+          (source.patchLocations ??= patchLineLocations(source.lines))
+            .slice(range.startLine - 1, range.endLine),
+        ),
+      } : {}),
       path: source.path,
       revision: source.revision,
       sourceId: source.id,

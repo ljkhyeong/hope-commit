@@ -12,7 +12,7 @@ import {
 import { join } from "node:path";
 import test, { after } from "node:test";
 
-import { main as runCommitCommand } from "../plugins/hope/skills/commit/scripts/cli.mjs";
+import { main as runCommitCommand, parseDiffArguments } from "../plugins/hope/skills/commit/scripts/cli.mjs";
 import { finishDiff } from "../plugins/hope/skills/commit/scripts/index.mjs";
 import { digestJson } from "../plugins/hope/review-core/hash.mjs";
 import {
@@ -420,6 +420,43 @@ test("Git 접근 오류 뒤 분석을 보존하고 같은 실행에서 발행을
   assert.equal(finished.outputPath, outputPath);
   assert.match(await readFile(outputPath, "utf8"), /<!doctype html>/iu);
   await assert.rejects(access(prepared.path), (error) => error.code === "ENOENT");
+});
+
+test("저장 경로 충돌 뒤 분석을 보존하고 새 경로로 발행한다", async () => {
+  const temporaryRoot = await createTestTemporaryDirectory("hope-commit-output-retry-");
+  const outputPath = join(temporaryRoot, "occupied.html");
+  const { prepared, run, dependencies } = await createInspectedCommitRun(temporaryRoot, { outputPath });
+  const analysis = `${JSON.stringify(makeLifecycleAnalysis(run), null, 2)}\n`;
+  await writeFile(prepared.analysisPath, analysis, { flag: "wx", mode: 0o600 });
+  await runCommitCommand(["validate", "--run", prepared.path], dependencies);
+  await writeFile(outputPath, "다른 작업에서 만든 파일", { flag: "wx" });
+
+  for (const options of [[], ["--output", outputPath], ["--output", join(prepared.path, "review.html")]]) {
+    await assert.rejects(
+      runCommitCommand(["finish", "--run", prepared.path, ...options], dependencies),
+      (error) => error.code === "HOPE_DIFF_PUBLICATION_RETRYABLE" && error.canRetry === true,
+    );
+    assert.equal(await readFile(prepared.analysisPath, "utf8"), analysis);
+    assert.equal(await readFile(outputPath, "utf8"), "다른 작업에서 만든 파일");
+  }
+
+  const newOutputPath = join(temporaryRoot, "review.html");
+  const finished = await runCommitCommand([
+    "finish", "--run", prepared.path, "--output", newOutputPath,
+  ], dependencies);
+  assert.equal(finished.outputPath, newOutputPath);
+  assert.equal(finished.snapshotDigest, prepared.snapshotDigest);
+  assert.match(await readFile(newOutputPath, "utf8"), /<!doctype html>/iu);
+  assert.equal(await readFile(outputPath, "utf8"), "다른 작업에서 만든 파일");
+  await assert.rejects(access(prepared.path), (error) => error.code === "ENOENT");
+});
+
+test("finish 외의 실행 명령은 저장 경로 변경을 받지 않는다", () => {
+  for (const command of ["inspect-window", "checkpoint-window", "ledger", "validate", "cancel"]) {
+    assert.throws(() => parseDiffArguments([
+      command, "--run", "run-path", "--output", "review.html",
+    ]), /private Skill adapter/u);
+  }
 });
 
 for (const failurePoint of ["inspection-page", "ledger-state", "manifest"]) {

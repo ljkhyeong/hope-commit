@@ -43,7 +43,7 @@ function usage() {
     "  context --run <private-run-path> --request <context-request-id>",
     "  microworld-skeleton --input <private-controls.json>",
     "  validate --run <private-run-path>",
-    "  finish --run <private-run-path>",
+    "  finish --run <private-run-path> [--output <path>]",
     "  cancel --run <private-run-path>",
   ].join("\n");
 }
@@ -171,7 +171,7 @@ export function parseDiffArguments(argv) {
     options.input
     || options.locale
     || options.theme
-    || options.output
+    || (options.output !== undefined && command !== "finish")
     || options["host-locale"]
   ) {
     throw new TypeError(usage());
@@ -188,6 +188,9 @@ export function parseDiffArguments(argv) {
     return { command, page, runPath: options.run };
   }
   if (options.page) throw new TypeError(usage());
+  if (command === "finish") {
+    return { command, outputPath: options.output, runPath: options.run };
+  }
   return { command, runPath: options.run };
 }
 
@@ -242,7 +245,10 @@ export async function main(argv = process.argv.slice(2), dependencies = {}) {
       dependencies,
     );
   } else if (options.command === "finish") {
-    result = await (dependencies.finishDiff ?? finishDiff)(options.runPath, dependencies);
+    result = await (dependencies.finishDiff ?? finishDiff)(options.runPath, {
+      ...dependencies,
+      outputPath: options.outputPath,
+    });
   } else {
     result = await (dependencies.cancelDiff ?? cancelDiff)(options.runPath, dependencies);
   }
