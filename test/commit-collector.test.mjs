@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile as execFileCallback, execFileSync } from "node:child_process";
-import { access, chmod, mkdir, mkdtemp, readdir, rm, unlink, writeFile } from "node:fs/promises";
+import { access, chmod, mkdir, mkdtemp, readdir, realpath, rm, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
@@ -55,8 +55,8 @@ function gitWithInput(repository, arguments_, input) {
   }).trim();
 }
 
-async function repositoryFixture() {
-  const repository = await mkdtemp(join(tmpdir(), "hope-commit-test-"));
+async function repositoryFixture(repositoryPath) {
+  const repository = repositoryPath ?? await mkdtemp(join(tmpdir(), "hope-commit-test-"));
   git(repository, "init");
   git(repository, "config", "user.name", "Hope Commit Test");
   git(repository, "config", "user.email", "hope-commit@example.invalid");
@@ -101,6 +101,26 @@ test("resolves a short commit ID and captures immutable commit blobs", async (t)
   assert.doesNotMatch(patch, /dirty worktree/u);
   assert.equal((await revalidateLocalGitSnapshot(snapshot)).matches, true);
 });
+
+for (const [label, suffix] of [["공백", " "], ["줄바꿈", "\n"]]) {
+  test(`저장소 경로의 끝 ${label}을 대상 확인과 수집에서 보존한다`, {
+    skip: process.platform === "win32" && "Windows에서 지원하지 않는 폴더명입니다.",
+  }, async (t) => {
+    const temporaryRoot = await mkdtemp(join(await realpath(tmpdir()), "hope-commit-path-"));
+    t.after(async () => rm(temporaryRoot, { force: true, recursive: true }));
+    const repository = join(temporaryRoot, `저장소${suffix}`);
+    await mkdir(repository);
+    const fixture = await repositoryFixture(repository);
+    const target = await resolveLocalCommitTarget({ commit: fixture.head, repositoryPath: repository });
+
+    assert.equal(target.repositoryPath, repository);
+    const snapshot = await collectLocalGitCommit(target);
+    assert.equal(snapshot.repository.path, repository);
+    assert.equal(snapshot.commit.id, fixture.head);
+    assert.match(snapshot.sources.find((source) => source.kind === "patch").text, /\+after/u);
+    assert.equal((await revalidateLocalGitSnapshot(snapshot)).matches, true);
+  });
+}
 
 test("compares a root commit with the empty tree", async (t) => {
   const fixture = await repositoryFixture();

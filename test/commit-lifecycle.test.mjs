@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import {
   access,
+  link,
   mkdir,
   open,
   readFile,
@@ -17,6 +18,7 @@ import test, { after } from "node:test";
 
 import { main as runCommitCommand, parseDiffArguments } from "../plugins/hope/skills/commit/scripts/cli.mjs";
 import { finishDiff } from "../plugins/hope/skills/commit/scripts/index.mjs";
+import { finalizeReview } from "../plugins/hope/skills/commit/scripts/finalize.mjs";
 import { digestJson } from "../plugins/hope/review-core/hash.mjs";
 import {
   appendDiffRunPlan,
@@ -486,6 +488,43 @@ for (const overrideOutput of [false, true]) {
     await assert.rejects(access(prepared.path), (error) => error.code === "ENOENT");
   });
 }
+
+test("저장 도중 상위 폴더가 이동하면 분석과 기존 파일을 보존하고 재시도한다", async () => {
+  const temporaryRoot = await createTestTemporaryDirectory("hope-commit-output-moved-");
+  const outputDirectory = join(temporaryRoot, "output");
+  await mkdir(join(outputDirectory, "reviews"), { recursive: true });
+  const outputPath = join(outputDirectory, "reviews", "review.html");
+  const existingPath = join(outputDirectory, "reviews", "existing.txt");
+  await writeFile(existingPath, "기존 파일");
+  const { prepared, run, dependencies } = await createInspectedCommitRun(temporaryRoot, { outputPath });
+  const analysis = `${JSON.stringify(makeLifecycleAnalysis(run), null, 2)}\n`;
+  await writeFile(prepared.analysisPath, analysis, { flag: "wx", mode: 0o600 });
+  await runCommitCommand(["validate", "--run", prepared.path], dependencies);
+  const movedDirectory = join(prepared.path, "moved-output");
+
+  await assert.rejects(finishDiff(prepared.path, {
+    ...dependencies,
+    finalize: (bytes, options) => finalizeReview(bytes, {
+      ...options,
+      linkFile: async (source, target) => {
+        await rename(outputDirectory, movedDirectory);
+        await symlink(movedDirectory, outputDirectory, process.platform === "win32" ? "junction" : "dir");
+        await link(source, target);
+      },
+    }),
+  }), (error) => error.code === "HOPE_DIFF_PUBLICATION_RETRYABLE" && error.canRetry === true);
+  assert.equal(await readFile(prepared.analysisPath, "utf8"), analysis);
+  assert.equal(await readFile(existingPath, "utf8"), "기존 파일");
+  assert.deepEqual(await readdir(join(movedDirectory, "reviews")), ["existing.txt"]);
+
+  await unlink(outputDirectory);
+  await rename(movedDirectory, outputDirectory);
+  const finished = await finishDiff(prepared.path, dependencies);
+  assert.equal(finished.outputPath, outputPath);
+  assert.match(await readFile(outputPath, "utf8"), /<!doctype html>/iu);
+  assert.equal(await readFile(existingPath, "utf8"), "기존 파일");
+  await assert.rejects(access(prepared.path), (error) => error.code === "ENOENT");
+});
 
 test("finish 외의 실행 명령은 저장 경로 변경을 받지 않는다", () => {
   for (const command of ["inspect-window", "checkpoint-window", "ledger", "validate", "cancel"]) {

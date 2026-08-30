@@ -176,13 +176,13 @@ async function readObjectTypes(repositoryPath, objects, options = {}) {
   });
 }
 
-async function resolveRepositoryPath(value, options = {}) {
+export async function resolveRepositoryPath(value, options = {}) {
   const requested = validateRepositoryPath(value ?? process.cwd());
-  const root = cleanText(await runGit(
+  const root = (await runGit(
     requested,
     ["rev-parse", "--show-toplevel"],
     options,
-  )).trim();
+  )).replace(/\n$/u, "");
   if (!root) throw new Error("Hope Commit could not resolve the repository root");
   return resolve(root);
 }

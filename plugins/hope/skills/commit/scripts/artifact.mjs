@@ -76,6 +76,13 @@ function hasDirectoryIdentity(info, expected) {
     && info.ino === expected.ino;
 }
 
+async function assertOutputDirectory(path, expected) {
+  const [resolved, current] = await Promise.all([realpath(path), lstat(path)]);
+  if (resolved !== path || !hasDirectoryIdentity(current, expected)) {
+    throw new Error("저장 중 출력 폴더의 위치나 대상이 바뀌었습니다. 경로를 확인한 뒤 다시 시도하세요.");
+  }
+}
+
 async function unlinkOwnedFile(path, expected) {
   if (!expected) return false;
   try {
@@ -148,6 +155,7 @@ export async function publishArtifact(bytes, {
   let published = false;
   let written;
   try {
+    const parentIdentity = await lstat(parent);
     if (excludedDirectory) {
       const relativePath = relative(excludedDirectory, target);
       if (
@@ -159,6 +167,7 @@ export async function publishArtifact(bytes, {
       }
     }
     written = await writeExclusive(staging, bytes);
+    await assertOutputDirectory(parent, parentIdentity);
     try {
       await linkFile(staging, target);
       published = true;
@@ -189,6 +198,7 @@ export async function publishArtifact(bytes, {
       throw new Error("The Hope artifact changed during publication");
     }
     await syncDirectory(parent);
+    await assertOutputDirectory(parent, parentIdentity);
     return target;
   } catch (error) {
     if (published && written) {
