@@ -1,0 +1,15 @@
+Hope Commit is an unofficial fork derived from Hope 6.0.0.
+
+Original project: https://github.com/dkstm95/hope
+Original copyright: Copyright (c) 2026 SeungIl
+Original license: MIT
+
+Modifications copyright: Copyright (c) 2026 ljkhyeong
+
+Hope Commit retains the original MIT license and adds evidence-linked reviews
+of immutable local Git commits. The original Hope project does not endorse or
+maintain this fork.
+
+Bundled fonts remain under the SIL Open Font License 1.1. Their full notices
+are stored under plugins/hope/assets/fonts/ and embedded in generated Commit
+Diff HTML artifacts.

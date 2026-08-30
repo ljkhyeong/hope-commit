@@ -6,11 +6,12 @@
   >
 </p>
 
-<h1 align="center">Hope</h1>
+<h1 align="center">Hope Commit</h1>
 
 <p align="center">
   <strong>
-    Hope는 사람이 AI와 함께 일하면서도 작업을 보고, 이해하고, 통제할 수 있도록 돕습니다.
+    변경 불가능한 Git 커밋 하나를 근거가 연결된 오프라인 HTML로 검토하면서
+    원본 Hope 기능도 함께 제공합니다.
   </strong>
 </p>
 
@@ -18,7 +19,31 @@
 
 <br>
 
+> [!NOTE]
+> Hope Commit은 SeungIl이 만든 [Hope](https://github.com/dkstm95/hope)
+> 6.0.0을 기준으로 만든 비공식 포크입니다. 원본 Git 이력과 MIT 라이선스를
+> 보존하며, 원본 프로젝트가 이 포크를 공식적으로 보증하거나 유지보수하지는
+> 않습니다.
+
 ## 기능
+
+### 🧾 Commit Diff — 변경 불가능한 로컬 Git 커밋 하나를 검토합니다
+
+Commit Diff는 16진수 커밋 ID를 받아 근거가 연결된 하나의 독립 실행형 오프라인
+HTML 리뷰를 만듭니다. 기본적으로 첫 번째 부모와 비교하고, 병합 커밋에서는 부모를
+직접 선택할 수 있으며, 루트 커밋은 Git의 빈 트리와 비교합니다.
+
+수집기는 작업 디렉터리가 아니라 커밋된 Git 객체를 읽습니다. 따라서 staged,
+unstaged, untracked 파일은 캡처한 리뷰에 영향을 주지 않습니다. 입력 크기 제한,
+비밀정보 제외, 근거 검증, 임시 상태 소유권, 원자적 발행 보장도 유지합니다.
+
+Commit Diff는 명시적으로 호출할 때만 실행합니다.
+
+```text
+이 저장소의 커밋 f6363ced를 $hope:commit으로 검토하고 한국어 HTML을 만들어줘.
+```
+
+---
 
 ### 🤝 Align — 구현 전 작업 이해를 맞추고 `의도 부채`를 방지합니다
 
@@ -150,7 +175,7 @@ Write의 공통 기준은 조지 오웰의
 > 가장 간단한 설치 방법은 AI에게 다음과 같이 요청하는 것입니다.
 >
 > ```text
-> https://github.com/dkstm95/hope 저장소의 Hope를 현재 AI 도구에 설치해 주세요.
+> https://github.com/ljkhyeong/hope-commit 저장소의 Hope Commit을 현재 AI 도구에 설치해 주세요.
 > 저장소의 README에 따라 설치하고, 다시 시작해야 한다면 알려 주세요.
 > ```
 
@@ -159,16 +184,17 @@ Write의 공통 기준은 조지 오웰의
 예시:
 ```bash
 # Codex
-codex plugin marketplace add dkstm95/hope
-codex plugin add hope@hope
+codex plugin marketplace add ljkhyeong/hope-commit
+codex plugin add hope@hope-commit
 ```
 
 ```bash
 # Claude Code
-claude plugin marketplace add dkstm95/hope
-claude plugin install hope@hope
+claude plugin marketplace add ljkhyeong/hope-commit
+claude plugin install hope@hope-commit
 ```
 
 ## 라이선스
 
-[MIT](LICENSE)
+[MIT](LICENSE)을 적용합니다. 원본 Hope 표기와 포크 상태는 [NOTICE](NOTICE)에서
+확인할 수 있습니다.

@@ -167,18 +167,41 @@ export function packageDigest(entries) {
   })));
 }
 
+export function selectPackageRoot(pluginDirectories) {
+  const supportedDirectories = new Set(["hope", "hope-commit"]);
+  const matches = pluginDirectories.filter((directory) => (
+    supportedDirectories.has(directory)
+  ));
+  if (matches.length !== 1) {
+    throw new Error(
+      `Expected one supported plugin package root, found: ${matches.join(", ") || "none"}`,
+    );
+  }
+  return `plugins/${matches[0]}`;
+}
+
 export function packageDigestAt(reference) {
   const commit = resolveCommit(reference);
   const packageFiles = parsePackageFileList(
     readGitFile(commit, "tools/plugin-package-files.txt").toString("utf8"),
   );
-  const tree = new Map(git(["ls-tree", "-r", commit, "--", "plugins/hope"])
+  const pluginRoot = selectPackageRoot(git([
+    "ls-tree",
+    "-d",
+    "--name-only",
+    `${commit}:plugins`,
+  ]).split(/\r?\n/u).filter(Boolean));
+  const tree = new Map(git(["ls-tree", "-r", commit, "--", pluginRoot])
     .split(/\r?\n/u)
     .filter(Boolean)
     .map((line) => {
-      const match = /^(?<mode>\d+)\s+(?<type>\S+)\s+(?<digest>[0-9a-f]+)\tplugins\/hope\/(?<path>.+)$/u.exec(line);
+      const match = /^(?<mode>\d+)\s+(?<type>\S+)\s+(?<digest>[0-9a-f]+)\t(?<fullPath>.+)$/u.exec(line);
       if (!match) throw new Error(`Could not parse package tree entry: ${line}`);
-      return [match.groups.path, match.groups];
+      const prefix = `${pluginRoot}/`;
+      if (!match.groups.fullPath.startsWith(prefix)) {
+        throw new Error(`Package tree entry is outside ${pluginRoot}: ${line}`);
+      }
+      return [match.groups.fullPath.slice(prefix.length), match.groups];
     }));
   return packageDigest(packageFiles.map((path) => {
     const entry = tree.get(path);
@@ -186,7 +209,7 @@ export function packageDigestAt(reference) {
       throw new Error(`Package entry is not a Git blob at ${commit}: ${path}`);
     }
     return {
-      bytes: readGitFile(commit, `plugins/hope/${path}`),
+      bytes: readGitFile(commit, `${pluginRoot}/${path}`),
       mode: entry.mode,
       path,
     };

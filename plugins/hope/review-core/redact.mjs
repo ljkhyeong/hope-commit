@@ -2,6 +2,7 @@ import { basename } from "node:path";
 
 const privatePathPatterns = [
   /^\.env(?:\.|$)/u,
+  /^\.(?:git-credentials|netrc|npmrc|pypirc)$/u,
   /^(?:id_|ssh_host_).*(?:rsa|dsa|ecdsa|ed25519)(?:\.|$)/u,
   /^(?:credentials|secrets?)(?:\.|$)/u,
 ];
@@ -12,6 +13,8 @@ const secretPatterns = [
   /\bgithub_pat_[A-Za-z0-9_]{20,}\b/u,
   /\bAKIA[0-9A-Z]{16}\b/u,
   /\bsk-(?:proj-)?[A-Za-z0-9_-]{20,}\b/u,
+  /\bnpm_[A-Za-z0-9]{36}\b/u,
+  /(?<![A-Za-z0-9_-])pypi-[A-Za-z0-9_-]{85,}(?![A-Za-z0-9_-])/u,
 ];
 
 export function redactionKind(path, texts) {

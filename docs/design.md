@@ -1,20 +1,20 @@
 # Hope design
 
 This document defines Hope's project-wide GUI guidance and the visual contracts
-of the current Align and Diff HTML artifacts.
+of the current Align, Diff, and Commit Diff HTML artifacts.
 
 The Project GUI layout and Project GUI widgets sections apply whenever a Hope
 feature introduces or changes a matching layout, control, or interaction.
 
 Feature-named sections apply only to that artifact. Sections named for Hope
-artifacts apply to both.
+artifacts apply to all three.
 
-The Align and Diff Skills own their feature judgment and prose.
+The Align, Diff, and Commit Diff Skills own their feature judgment and prose.
 
 Align defines the shared artifact visual baseline. Diff matches that baseline
 for common color, type, spacing, product-bar, document, and navigation roles.
-Each feature still owns its visual tokens and renderer, and neither imports the
-other at runtime.
+Each feature still owns its visual tokens and renderer. No renderer imports
+another feature's renderer at runtime.
 
 Do not introduce a shared artifact framework until two real consumers need the
 same invariant.
@@ -46,7 +46,8 @@ Preserve an authored semantic paragraph as a separate HTML paragraph. Do not
 collapse distinct paragraphs into one run of text or use layout columns to
 create paragraph boundaries.
 
-Use the same small set of semantic section patterns across Align and Diff:
+Use the same small set of semantic section patterns across Align, Diff, and
+Commit Diff:
 
 - structured label-and-value rows for summaries, with the goal first;
 - parallel cells only for brief comparisons that must be scanned together;
@@ -124,6 +125,11 @@ its values. Common roles match the corresponding Align values without importing
 Align code. Diff-only code and status roles remain local to Diff.
 
 The Diff renderer must read those tokens instead of copying their values.
+
+Commit Diff follows the same artifact direction and semantic structure. It
+replaces pull-request identity with one reviewed local Git commit and its
+selected parent. Its renderer and tokens stay inside the Commit Diff Skill and
+do not import Diff at runtime.
 
 ## Diff artifact structure
 
@@ -554,9 +560,10 @@ only from Align's own tokens.
 
 ## Hope artifact branding
 
-Align and Diff embed the fixed Hope Sans files and Hope product icon under
-`plugins/hope/assets/`. Diff also embeds Hope Code from the same asset folder.
-Each feature still owns how those assets are applied in its renderer.
+Align, Diff, and Commit Diff embed the fixed Hope Sans files and Hope product
+icon under `plugins/hope/assets/`. Diff and Commit Diff also embed Hope Code
+from the same asset folder. Each feature still owns how those assets are
+applied in its renderer.
 
 Put the Hope icon immediately before **HOPE** in both product bars. Keep the
 visible wordmark as the accessible name; the icon is decorative.
@@ -617,9 +624,11 @@ Use three clear roles.
 | Wordmark and headings | Hope Sans Bold |
 | Code, commands, paths, and hashes | Hope Code, from D2Coding |
 
-Embed the fixed WOFF2 files in every offline artifact. Use a local sans-serif or
-monospace fallback only for characters that the bundled fonts do not contain,
-and do not synthesize a missing font weight.
+Embed the fixed WOFF2 files in every offline artifact. Commit Diff also embeds
+the complete OFL notices so a standalone HTML copy carries the license terms
+for its bundled fonts. Use a local sans-serif or monospace fallback only for
+characters that the bundled fonts do not contain, and do not synthesize a
+missing font weight.
 
 Hope presents the converted files under Hope-owned family names because both
 source licenses reserve their original family names.
@@ -846,5 +855,5 @@ data URL or SVG as a design-direction image.
 Design code may contain feature-local tokens, fixed assets, and small helpers.
 
 Each feature owns its concrete HTML, tokens, and publication boundary. Keep
-Align and Diff rendering, state, and design sources separate until another
-exact invariant earns shared implementation.
+Align, Diff, and Commit Diff rendering, state, and design sources separate
+until another exact invariant earns shared implementation.

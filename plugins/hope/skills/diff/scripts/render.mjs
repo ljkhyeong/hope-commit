@@ -15,9 +15,9 @@ import {
   RENDERER_VERSION,
 } from "./constants.mjs";
 import { renderCodeEvidence } from "./code-evidence.mjs";
-import { sha256 } from "./hash.mjs";
+import { sha256 } from "../../../review-core/hash.mjs";
 import { TEACHING_AID_NAMES } from "./teaching-aids.mjs";
-import { exposeBidiControls } from "./text.mjs";
+import { exposeBidiControls } from "../../../review-core/text.mjs";
 
 const fontUrls = Object.freeze({
   code: new URL("../../../assets/fonts/HopeCode.woff2", import.meta.url),

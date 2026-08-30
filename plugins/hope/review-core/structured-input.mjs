@@ -1,4 +1,3 @@
-// Diff owns this bounded reader for private structured input.
 import { lstat, open } from "node:fs/promises";
 
 const STRUCTURE_LIMITS = Object.freeze({

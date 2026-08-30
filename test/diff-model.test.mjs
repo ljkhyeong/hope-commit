@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { digestJson } from "../plugins/hope/skills/diff/scripts/hash.mjs";
+import { digestJson } from "../plugins/hope/review-core/hash.mjs";
 import { validateAnalysis } from "../plugins/hope/skills/diff/scripts/validate.mjs";
 import {
   makeAnalysis,

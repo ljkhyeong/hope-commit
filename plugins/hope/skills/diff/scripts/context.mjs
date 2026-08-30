@@ -3,8 +3,8 @@ import {
   githubUnavailableReason,
   readGitHubContent,
 } from "./github.mjs";
-import { redactionKind } from "./redact.mjs";
-import { containsBidiControl } from "./text.mjs";
+import { redactionKind } from "../../../review-core/redact.mjs";
+import { containsBidiControl } from "../../../review-core/text.mjs";
 
 const revisionKinds = new Set(["head", "merge-base"]);
 

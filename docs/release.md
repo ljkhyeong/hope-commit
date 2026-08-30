@@ -90,12 +90,21 @@ decision before review and merge.
 
 ## Publish the recorded version
 
-A push to `main` that changes `package.json` starts the `Release` workflow.
+Every push to `main` runs `Verify`. After all supported Node.js versions,
+platform smoke checks, and browser checks pass, that completed run starts the
+`Release` workflow.
 
-The workflow checks out that event's exact commit.
+The repository accepts `main` changes only through pull requests that pass
+`Verify` and `AI-readable change title`. It allows squash merges, prevents
+force pushes, and prevents deleting `main`.
 
-If the push did not change the recorded version, the workflow exits without
-publishing.
+Release accepts only a successful `Verify` run for a `main` push from this
+repository. It checks out the exact commit verified by that run.
+
+If that commit did not change the recorded version, the workflow exits without
+publishing when the matching tag and GitHub Release already exist. If the
+current version has no tag and the verified commit did not change that version,
+the workflow fails instead of hiding a missed or interrupted release.
 
 For a new version, it checks the recorded package, stages and verifies the
 archive, and then creates the tag and GitHub Release.
@@ -119,4 +128,7 @@ If neither exists, the run checks and publishes that recorded version.
 If the tag exists without a GitHub Release, the run restores the tagged commit,
 checks its package again, and publishes the missing release.
 
-Once a version tag exists, its source and plugin package are immutable.
+GitHub locks the tag and assets after an immutable Release is published. This
+setting applies only to Releases published after it is enabled. `v4.0.0`
+remains the unchanged historical exception, and its tag is protected by the
+repository's `v*` tag ruleset.

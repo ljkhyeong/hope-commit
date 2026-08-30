@@ -34,6 +34,12 @@ Runtime source stays inside its feature boundary and does not depend on a
 sibling feature or repository support. It may depend on Hope-wide immutable
 assets.
 
+Diff and Commit Diff also depend on `plugins/hope/review-core/`. This published
+shared runtime contains only the canonical JSON hash, evidence-range splitting,
+text and redaction safety, review-result derivation, and bounded structured
+input used by both features. Collection, workflow, state, rendering, and
+publication remain inside the owning feature.
+
 Any other cross-feature source dependency requires an explicit shared contract
 and must satisfy the shared-source rule in
 [PRINCIPLES.md](../PRINCIPLES.md#keep-each-feature-close-together).
@@ -62,6 +68,7 @@ flowchart LR
   D["Delivery metadata"] --> F["Feature interface"]
   F --> G["Published shared guidance"]
   F --> R["Feature runtime"]
+  R --> C["Published review core"]
   R --> A["Shared immutable assets"]
   T["Repository support"] --> D
   T --> F

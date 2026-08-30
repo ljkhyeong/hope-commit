@@ -16,6 +16,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { makeAnalysis, makeSnapshot } from "../test-support/diff-fixture.mjs";
 import { normalizeLineEndings } from "../tools/build-plugin.mjs";
 import {
+  installCodexPluginFromLocalMarketplace,
   parseInstallResult,
   verifyInstalledPlugin,
 } from "../tools/install-plugin-dev.mjs";
@@ -26,8 +27,10 @@ import {
   packageDigest,
   packageDigestFromDirectory,
   releaseTypeBetween,
+  selectPackageRoot,
   validateReleaseImpact,
 } from "../tools/release-impact.mjs";
+import { chooseReleasePlan } from "../tools/plan-release.mjs";
 import {
   replaceVersion,
   withPackageLockVersion,
@@ -252,6 +255,16 @@ test("package impact ignores only manifest versions", () => {
   );
 });
 
+test("package impact reads the plugin root used by each release", () => {
+  assert.equal(selectPackageRoot(["hope"]), "plugins/hope");
+  assert.equal(selectPackageRoot(["hope-commit"]), "plugins/hope-commit");
+  assert.throws(() => selectPackageRoot([]), /found: none/u);
+  assert.throws(
+    () => selectPackageRoot(["hope", "hope-commit"]),
+    /found: hope, hope-commit/u,
+  );
+});
+
 test("package impact reads the current working directory", async (context) => {
   const directory = await mkdtemp(join(tmpdir(), "hope-package-impact-"));
   context.after(async () => await rm(directory, { recursive: true, force: true }));
@@ -282,14 +295,41 @@ test("development installation verifies the selected plugin and cache", async (c
   const temporaryRoot = await mkdtemp(join(tmpdir(), "hope-dev-cache-test-"));
   context.after(async () => await rm(temporaryRoot, { recursive: true, force: true }));
 
+  const commands = [];
+  const commandResult = { stdout: "installed" };
+  assert.equal(installCodexPluginFromLocalMarketplace({
+    codexCommand: "codex-test",
+    runCommand(command, arguments_) {
+      commands.push({ arguments_, command });
+      return commandResult;
+    },
+  }), commandResult);
+  assert.equal(commands.length, 2);
+  assert.equal(commands[0].command, "codex-test");
+  assert.deepEqual(
+    commands[0].arguments_.slice(0, 3),
+    ["plugin", "marketplace", "add"],
+  );
+  assert.equal(resolve(commands[0].arguments_[3]), root);
+  assert.deepEqual(commands[0].arguments_.slice(4), ["--json"]);
+  assert.deepEqual(commands[1], {
+    arguments_: [
+      "plugin",
+      "add",
+      "hope@hope-commit",
+      "--json",
+    ],
+    command: "codex-test",
+  });
+
   const manifest = JSON.parse(await readFile(
     join(pluginRoot, ".codex-plugin/plugin.json"),
     "utf8",
   ));
   const installResult = parseInstallResult(JSON.stringify({
-    pluginId: "hope@hope",
+    pluginId: "hope@hope-commit",
     name: "hope",
-    marketplaceName: "hope",
+    marketplaceName: "hope-commit",
     version: manifest.version,
     installedPath: temporaryRoot,
   }), manifest.version);
@@ -338,9 +378,113 @@ test("release file lists compare across platform line endings", () => {
   assert.equal(normalizeLineEndings(windowsCheckout), expected);
 });
 
+test("release planning covers recorded, completed, and interrupted versions", () => {
+  assert.deepEqual(chooseReleasePlan({
+    currentVersion: "4.0.0",
+    eventName: "workflow_run",
+    previousVersion: "3.1.1",
+    releaseExists: false,
+    tagExists: false,
+  }), {
+    currentTag: "v4.0.0",
+    currentVersion: "4.0.0",
+    mode: "recorded",
+    publish: true,
+  });
+  assert.deepEqual(chooseReleasePlan({
+    currentVersion: "4.0.0",
+    eventName: "workflow_run",
+    previousVersion: "4.0.0",
+    releaseExists: true,
+    tagExists: true,
+  }), {
+    currentTag: "v4.0.0",
+    currentVersion: "4.0.0",
+    mode: "none",
+    publish: false,
+  });
+  assert.deepEqual(chooseReleasePlan({
+    currentVersion: "4.0.0",
+    eventName: "workflow_dispatch",
+    releaseExists: false,
+    tagExists: true,
+  }), {
+    currentTag: "v4.0.0",
+    currentVersion: "4.0.0",
+    mode: "resume",
+    publish: true,
+  });
+  assert.deepEqual(chooseReleasePlan({
+    currentVersion: "4.0.0",
+    eventName: "workflow_dispatch",
+    releaseExists: false,
+    tagExists: false,
+  }), {
+    currentTag: "v4.0.0",
+    currentVersion: "4.0.0",
+    mode: "recorded",
+    publish: true,
+  });
+});
+
+test("release planning rejects missing tags and contradictory GitHub state", () => {
+  assert.throws(() => chooseReleasePlan({
+    currentVersion: "4.0.0",
+    eventName: "workflow_run",
+    previousVersion: "4.0.0",
+    releaseExists: false,
+    tagExists: false,
+  }), /태그가 없지만 검증된 커밋은 버전을 변경하지 않았습니다/u);
+  assert.throws(() => chooseReleasePlan({
+    currentVersion: "4.0.0",
+    eventName: "workflow_run",
+    previousVersion: "3.1.1",
+    releaseExists: true,
+    tagExists: false,
+  }), /GitHub Release에 대응하는 Git 태그가 없습니다/u);
+});
+
+test("release planning writes GitHub Actions outputs", async (context) => {
+  const temporaryRoot = await mkdtemp(join(tmpdir(), "hope-release-plan-"));
+  context.after(async () => await rm(temporaryRoot, { recursive: true, force: true }));
+  const outputPath = join(temporaryRoot, "github-output.txt");
+  const result = spawnSync(
+    process.execPath,
+    [join(root, "tools/plan-release.mjs")],
+    {
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        CURRENT_VERSION: "4.0.0",
+        EVENT_NAME: "workflow_run",
+        GITHUB_OUTPUT: outputPath,
+        PREVIOUS_VERSION: "3.1.1",
+        RELEASE_EXISTS: "false",
+        TAG_EXISTS: "false",
+      },
+    },
+  );
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(
+    await readFile(outputPath, "utf8"),
+    [
+      "current-version=4.0.0",
+      "current-tag=v4.0.0",
+      "mode=recorded",
+      "publish=true",
+      "",
+    ].join("\n"),
+  );
+});
+
 test("CI keeps release decisions local and publishes a checked package", async () => {
   const verify = await readFile(join(root, ".github/workflows/verify.yml"), "utf8");
+  const changeTitle = await readFile(
+    join(root, ".github/workflows/change-title.yml"),
+    "utf8",
+  );
   const release = await readFile(join(root, ".github/workflows/release.yml"), "utf8");
+  const workflows = [verify, changeTitle, release];
 
   const verifyInstall = verify.indexOf("- run: npm ci");
   const releaseCheck = release.indexOf("node tools/check-release.mjs");
@@ -349,15 +493,40 @@ test("CI keeps release decisions local and publishes a checked package", async (
   const releasePublish = release.indexOf("- name: Publish recorded release");
   assert.ok(verifyInstall >= 0, "verify workflow must install dependencies");
   assert.ok(verifyInstall < verify.indexOf("- run: npm run check"));
+  assert.match(
+    verify,
+    /git diff --exit-code --\s+plugins\/hope\/LICENSE\s+plugins\/hope\/NOTICE\s+tools\/plugin-package-files\.txt/u,
+  );
+  assert.doesNotMatch(verify, /plugins\/hope-commit\/LICENSE/u);
+  for (const workflow of workflows) {
+    const actionReferences = [
+      ...workflow.matchAll(/actions\/(?:checkout|setup-node)@([^\s#]+)/gu),
+    ];
+    assert.ok(actionReferences.length > 0);
+    for (const [, reference] of actionReferences) {
+      assert.match(reference, /^[0-9a-f]{40}$/u);
+    }
+    assert.match(workflow, /actions\/checkout@[0-9a-f]{40}\s+#\s+v7\.\d+\.\d+/u);
+    assert.match(workflow, /actions\/setup-node@[0-9a-f]{40}\s+#\s+v7\.\d+\.\d+/u);
+  }
   assert.doesNotMatch(verify, /tools\/release-impact\.mjs|BASE_REF/u);
-  assert.match(release, /push:\s+branches:\s+- main\s+paths:\s+- package\.json/su);
+  assert.match(release, /workflow_run:\s+workflows:\s+- Verify\s+types:\s+- completed/su);
   assert.match(release, /workflow_dispatch/u);
-  assert.doesNotMatch(release, /workflow_run/u);
+  assert.doesNotMatch(release, /^\s+push:/mu);
+  assert.match(release, /workflow_run\.conclusion == 'success'/u);
+  assert.match(release, /workflow_run\.event == 'push'/u);
+  assert.match(release, /workflow_run\.head_branch == 'main'/u);
+  assert.match(
+    release,
+    /workflow_run\.head_repository\.full_name == github\.repository/u,
+  );
   assert.match(release, /queue: max/u);
-  assert.match(release, /ref: \$\{\{ github\.sha \}\}/u);
+  assert.match(release, /ref: \$\{\{ github\.event_name == 'workflow_run' && github\.event\.workflow_run\.head_sha \|\| github\.sha \}\}/u);
   assert.match(release, /test "\$\{EVENT_REF\}" = "refs\/heads\/main"/u);
   assert.match(release, /test "\$\(git rev-parse HEAD\)" = "\$\{EVENT_SHA\}"/u);
-  assert.match(release, /PREVIOUS_VERSION=.*BEFORE_SHA/u);
+  assert.match(release, /PREVIOUS_VERSION=.*EVENT_SHA\}\^:package\.json/u);
+  assert.match(release, /node tools\/plan-release\.mjs/u);
+  assert.doesNotMatch(release, /echo "mode=\$\{MODE\}"/u);
   assert.doesNotMatch(release, /npm ci|release:prepare|test:browser|playwright install/u);
   assert.match(release, /git tag "\$\{\{ steps\.plan\.outputs\.current-tag \}\}"/u);
   assert.doesNotMatch(release, /git tag -a/u);
@@ -372,7 +541,7 @@ test("CI keeps release decisions local and publishes a checked package", async (
 
 test("the release package contains exactly the approved plugin files", async (context) => {
   const temporaryRoot = await mkdtemp(join(tmpdir(), "hope-package-test-"));
-  const destination = join(temporaryRoot, "hope");
+  const destination = join(temporaryRoot, "hope-commit");
   context.after(async () => await rm(temporaryRoot, { recursive: true, force: true }));
 
   const expected = await readPackageFileList();

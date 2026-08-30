@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { LIMITS } from "../plugins/hope/skills/diff/scripts/constants.mjs";
-import { digestJson } from "../plugins/hope/skills/diff/scripts/hash.mjs";
+import { digestJson } from "../plugins/hope/review-core/hash.mjs";
 import { renderReview } from "../plugins/hope/skills/diff/scripts/render.mjs";
 import { validateAnalysis } from "../plugins/hope/skills/diff/scripts/validate.mjs";
 import {

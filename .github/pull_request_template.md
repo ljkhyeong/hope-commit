@@ -1,28 +1,28 @@
-## Goal
+## 목표
 
-- User result:
-- Why it is needed:
-- Not included:
+- 사용자에게 제공할 결과:
+- 필요한 이유:
+- 제외 범위:
 
-## Change
+## 변경 내용
 
-- Before:
-- After:
-- Important decision or tradeoff:
+- 변경 전:
+- 변경 후:
+- 주요 결정 또는 감수한 점:
 
-## Safety
+## 안전성
 
-- Main risk or unknown:
-- Ownership or cleanup rule, if relevant:
+- 주요 위험 또는 확인되지 않은 사항:
+- 해당하는 경우 소유권 또는 정리 기준:
 
-## Validation
+## 검증
 
-- Commands that ran:
-- Checks not run:
+- 실행한 명령:
+- 실행하지 않은 검사:
 - [ ] `npm run check`
 
-## Release
+## 릴리스
 
-- Decision: none | patch | minor | major
-- Version: unchanged | x.y.z
-- Reason:
+- 결정: none | patch | minor | major
+- 버전: 변경 없음 | x.y.z
+- 이유:

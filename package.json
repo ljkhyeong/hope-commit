@@ -1,9 +1,9 @@
 {
-  "name": "hope",
-  "version": "6.0.0",
+  "name": "hope-commit",
+  "version": "5.0.0",
   "private": true,
   "type": "module",
-  "description": "Hope plugin source and release tooling for AI-assisted work.",
+  "description": "Hope fork with local Git commit review and offline HTML artifacts.",
   "license": "MIT",
   "engines": {
     "node": ">=22"
@@ -22,6 +22,6 @@
     "check": "npm run check:release && npm run release:check && npm test"
   },
   "devDependencies": {
-    "@playwright/test": "1.61.1"
+    "@playwright/test": "1.62.1"
   }
 }

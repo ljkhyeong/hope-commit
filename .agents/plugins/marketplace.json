@@ -1,7 +1,7 @@
 {
-  "name": "hope",
+  "name": "hope-commit",
   "interface": {
-    "displayName": "Hope"
+    "displayName": "Hope Commit"
   },
   "plugins": [
     {

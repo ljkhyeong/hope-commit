@@ -63,9 +63,9 @@ export function parseInstallResult(stdout, expectedVersion) {
     throw new Error("Codex did not return a JSON plugin install result");
   }
   if (
-    result.pluginId !== "hope@hope"
+    result.pluginId !== "hope@hope-commit"
     || result.name !== "hope"
-    || result.marketplaceName !== "hope"
+    || result.marketplaceName !== "hope-commit"
     || result.version !== expectedVersion
     || typeof result.installedPath !== "string"
   ) {
@@ -107,21 +107,35 @@ export async function verifyInstalledPlugin(installedPath) {
   return expectedFiles;
 }
 
+export function installCodexPluginFromLocalMarketplace({
+  codexCommand = "codex",
+  runCommand = run,
+} = {}) {
+  runCommand(codexCommand, [
+    "plugin",
+    "marketplace",
+    "add",
+    root,
+    "--json",
+  ]);
+  return runCommand(codexCommand, [
+    "plugin",
+    "add",
+    "hope@hope-commit",
+    "--json",
+  ]);
+}
+
 export async function installDevPlugin({ codexCommand = "codex" } = {}) {
   await buildPlugin();
   run(process.execPath, ["tools/check-release.mjs"]);
 
   const manifest = JSON.parse(await readFile(sourceManifest, "utf8"));
-  const install = run(codexCommand, [
-    "plugin",
-    "add",
-    "hope@hope",
-    "--json",
-  ]);
+  const install = installCodexPluginFromLocalMarketplace({ codexCommand });
   const result = parseInstallResult(install.stdout, manifest.version);
   await verifyInstalledPlugin(result.installedPath);
   process.stdout.write(
-    `Installed and verified Hope ${result.version}. Start a new Codex task to use it.\n`,
+    `Installed and verified Hope Commit ${result.version}. Start a new Codex task to use it.\n`,
   );
   return result;
 }

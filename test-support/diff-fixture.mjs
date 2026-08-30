@@ -1,4 +1,4 @@
-import { digestJson } from "../plugins/hope/skills/diff/scripts/hash.mjs";
+import { digestJson } from "../plugins/hope/review-core/hash.mjs";
 
 export function makeSnapshot({
   locale = "en-US",

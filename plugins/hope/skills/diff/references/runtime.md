@@ -45,6 +45,10 @@ Each run owns one restricted temporary directory and records the identity
 needed to remove it. Cleanup rechecks that identity and preserves a path whose
 ownership is uncertain.
 
+When cleanup claims a run, Diff records the original directory identity outside
+that directory. An interrupted removal can therefore resume even after the
+internal manifest has already been deleted.
+
 Publication creates a new artifact and never replaces an existing path. A
 failed collection, validation, render, revalidation, or publication does not
 publish a partial review.
