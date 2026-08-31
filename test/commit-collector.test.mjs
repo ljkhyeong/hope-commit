@@ -504,6 +504,56 @@ test("바이너리 속성이 있는 이름 변경도 수집하되 실제 바이�
   assert.equal((await readGitBlob(fixture.repository, target.commit, "binary.txt")).state, "binary");
 });
 
+for (const [label, beforeMode, afterMode, additions, deletions] of [
+  ["심볼릭 링크에서 일반 파일", "120000", "100644", 2, 1],
+  ["일반 파일에서 심볼릭 링크", "100644", "120000", 1, 2],
+]) {
+  test(`-diff 속성이 있어도 ${label}로 바뀐 줄 수를 합산한다`, async (t) => {
+    const fixture = await repositoryFixture();
+    t.after(async () => rm(fixture.repository, { force: true, recursive: true }));
+    const objects = {
+      "100644": gitWithInput(fixture.repository, ["hash-object", "-w", "--stdin"], "first line\nsecond line\n"),
+      "120000": gitWithInput(fixture.repository, ["hash-object", "-w", "--stdin"], "target.txt"),
+    };
+    for (const mode of [beforeMode, afterMode]) {
+      git(fixture.repository, "update-index", "--add", "--cacheinfo", `${mode},${objects[mode]},entry.txt`);
+      git(fixture.repository, "commit", "--quiet", "-m", `${label} 형식 변경 확인`);
+    }
+    const target = {
+      commit: git(fixture.repository, "rev-parse", "HEAD"),
+      repositoryPath: fixture.repository,
+    };
+    const baseline = await collectLocalGitCommit(target);
+    assert.equal(baseline.files.length, 1);
+    assert.equal(baseline.files[0].providerStatus, "changed");
+    assert.equal(baseline.files[0].additions, additions);
+    assert.equal(baseline.files[0].deletions, deletions);
+
+    await writeFile(join(fixture.repository, ".gitattributes"), "*.txt -diff\n");
+    const snapshot = await collectLocalGitCommit(target);
+    assert.deepEqual(snapshot.files, baseline.files);
+    assert.deepEqual(snapshot.sources, baseline.sources);
+    assert.ok(buildInspectionPages(snapshot).length > 0);
+  });
+}
+
+test("일반 변경 목록의 중복 경로는 합산하지 않고 거절한다", async (t) => {
+  const fixture = await repositoryFixture();
+  t.after(async () => rm(fixture.repository, { force: true, recursive: true }));
+  await assert.rejects(collectLocalGitCommit({
+    commit: fixture.head,
+    repositoryPath: fixture.repository,
+  }, {
+    exec: async (command, arguments_, options) => {
+      const result = await execFile(command, arguments_, options);
+      if (arguments_.includes("diff") && arguments_.includes("--numstat")) {
+        return { ...result, stdout: Buffer.concat([result.stdout, result.stdout]) };
+      }
+      return result;
+    },
+  }), /duplicate changed-line counts/u);
+});
+
 test("selects an explicit merge parent", async (t) => {
   const fixture = await repositoryFixture();
   t.after(async () => rm(fixture.repository, { force: true, recursive: true }));
