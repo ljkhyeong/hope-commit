@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import { digestJson } from "../plugins/hope/review-core/hash.mjs";
+import { LIMITS } from "../plugins/hope/skills/diff/scripts/constants.mjs";
 import { validateAnalysis } from "../plugins/hope/skills/diff/scripts/validate.mjs";
 import {
   makeAnalysis,
@@ -716,6 +718,65 @@ test("context checks account for limits with status-specific evidence", () => {
     () => validateAnalysis(codeWithDescription, snapshot, { runId }),
     /non-code evidence as a code basis/u,
   );
+});
+
+test("500개 변경 파일과 추가 맥락의 제외 사유를 연결하되 잘못된 ID는 거절한다", async () => {
+  const { digest: _digest, ...value } = withVerificationLimit(makeSnapshot());
+  const unavailableFiles = Array.from({ length: LIMITS.changedFiles - 1 }, (_, index) => ({
+    additions: 0,
+    bodyState: "metadata-only",
+    deletions: 0,
+    id: `file-${index + 2}`,
+    path: `image-${index}.bin`,
+    providerStatus: "added",
+    sourceIds: [],
+  }));
+  value.files = [...value.files, ...unavailableFiles];
+  const unavailableLimits = [
+    ...unavailableFiles.map((file) => ({
+      kind: "file-unavailable",
+      reason: "바이너리 본문은 수집하지 않습니다.",
+      subject: file.path,
+    })),
+    ...Array.from({ length: LIMITS.contextFiles }, (_, index) => ({
+      kind: "context-unavailable",
+      reason: "요청한 파일을 찾지 못했습니다.",
+      revision: value.snapshot.head,
+      subject: `context-${index}.js`,
+    })),
+  ];
+  value.limits = [
+    ...value.limits,
+    ...unavailableLimits.map((limit, index) => ({ ...limit, id: `limit-${index + 3}` })),
+  ];
+  const snapshot = { ...value, digest: digestJson(value) };
+  const analysis = makeAnalysis(snapshot, runId);
+  analysis.limitImpacts = snapshot.limits.map((limit) => ({
+    impact: "수집하지 못한 본문과 실행 결과는 검토 결론에 포함하지 않습니다.",
+    limitId: limit.id,
+    material: false,
+  }));
+  const limitIds = snapshot.limits.map((limit) => limit.id);
+  analysis.contextChecks[1].limitIds = limitIds;
+  const validated = validateAnalysis(analysis, snapshot, { runId });
+  assert.deepEqual(validated.contextChecks[1].limitIds, limitIds);
+  const schema = JSON.parse(await readFile(new URL(
+    "../plugins/hope/skills/diff/scripts/analysis-v3.schema.json", import.meta.url,
+  ), "utf8"));
+  assert.equal(
+    schema.properties.contextChecks.items.properties.limitIds.maxItems,
+    LIMITS.changedFiles + 2 + LIMITS.contextFiles,
+  );
+
+  for (const [ids, message] of [
+    [[limitIds[1], ...limitIds.slice(1)], /contains a duplicate/u],
+    [["limit-9999", ...limitIds.slice(1)], /refers to an unknown limit/u],
+    [limitIds.slice(0, -1), /No context check accounts for/u],
+  ]) {
+    const invalid = structuredClone(analysis);
+    invalid.contextChecks[1].limitIds = ids;
+    assert.throws(() => validateAnalysis(invalid, snapshot, { runId }), message);
+  }
 });
 
 test("exact-revision context is code evidence but cannot replace change evidence", () => {

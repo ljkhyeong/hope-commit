@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "hope",
-  "version": "5.0.1",
+  "version": "5.0.2",
   "description": "Adds evidence-linked reviews of immutable local Git commits while retaining Hope's intent, maintenance, review, PR explanation, and writing skills. Requires Node.js 22 or newer.",
   "author": {
     "name": "ljkhyeong",

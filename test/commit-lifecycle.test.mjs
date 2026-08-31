@@ -16,6 +16,7 @@ import { join } from "node:path";
 import test, { after } from "node:test";
 
 import { main as runCommitCommand, parseDiffArguments } from "../plugins/hope/skills/commit/scripts/cli.mjs";
+import { LIMITS } from "../plugins/hope/skills/commit/scripts/constants.mjs";
 import { finishDiff } from "../plugins/hope/skills/commit/scripts/index.mjs";
 import { finalizeReview } from "../plugins/hope/skills/commit/scripts/finalize.mjs";
 import { digestJson } from "../plugins/hope/review-core/hash.mjs";
@@ -223,6 +224,63 @@ test("Commit Diff가 준비한 상태를 검증하고 재검증한 뒤 HTML을 �
   assert.match(await readFile(outputPath, "utf8"), /<!doctype html>/iu);
   await assert.rejects(access(prepared.path), (error) => error.code === "ENOENT");
 });
+
+for (const binaryCount of [239, LIMITS.changedFiles - 1]) {
+  test(`텍스트 변경과 바이너리 ${binaryCount}개의 제외 사유를 기록하고 HTML을 만든다`, async () => {
+    const temporaryRoot = await createTestTemporaryDirectory("hope-commit-many-limits-");
+    await createRepositoryFixture(temporaryRoot);
+    const paths = Array.from({ length: binaryCount }, (_, index) => `image-${index}.bin`);
+    await Promise.all(paths.map((path) => (
+      writeFile(join(temporaryRoot, path), Buffer.from([0, 1, 2]))
+    )));
+    git(temporaryRoot, "add", ...paths);
+    git(temporaryRoot, "commit", "--amend", "--no-edit", "--quiet");
+    const commit = git(temporaryRoot, "rev-parse", "HEAD");
+    const outputPath = join(temporaryRoot, "review.html");
+    const dependencies = commandDependencies(temporaryRoot);
+    const prepared = await runCommitCommand([
+      "prepare", commit, "--repo", temporaryRoot,
+      "--host-locale", "ko-KR", "--output", outputPath,
+    ], dependencies);
+    await checkpointEveryWindow(prepared.path, dependencies);
+    const run = await loadDiffRun(prepared.path, { temporaryRoot });
+    assert.equal(run.snapshot.files.length, binaryCount + 1);
+    assert.equal(run.snapshot.limits.length, binaryCount + 2);
+
+    const analysis = makeLifecycleAnalysis(run);
+    analysis.fileDispositions = run.snapshot.files
+      .filter((file) => file.bodyState === "included")
+      .map((file) => ({ disposition: "explained", fileId: file.id }));
+    analysis.contextChecks.push({
+      basis: "unknown",
+      evidence: [],
+      explanation: "바이너리 본문은 검토하지 않고 파일 변경 여부만 확인합니다.",
+      limitIds: run.snapshot.limits
+        .filter((limit) => limit.kind === "file-unavailable")
+        .map((limit) => limit.id),
+      status: "limited",
+      subject: "바이너리 파일 본문",
+    });
+    await writeFile(prepared.analysisPath, JSON.stringify(analysis), {
+      flag: "wx", mode: 0o600,
+    });
+    const validated = await runCommitCommand([
+      "validate", "--run", prepared.path,
+    ], dependencies);
+    assert.equal(validated.valid, true);
+    const schema = JSON.parse(await readFile(prepared.analysisSchemaPath, "utf8"));
+    assert.equal(
+      schema.properties.contextChecks.items.properties.limitIds.maxItems,
+      LIMITS.changedFiles + 2 + LIMITS.contextFiles,
+    );
+
+    await runCommitCommand(["finish", "--run", prepared.path], dependencies);
+    const html = await readFile(outputPath, "utf8");
+    assert.match(html, /<!doctype html>/iu);
+    assert.ok(html.includes(paths.at(-1)));
+    await assert.rejects(access(prepared.path), (error) => error.code === "ENOENT");
+  });
+}
 
 for (const kind of ["빈 커밋", "바이너리", "서브모듈", "비공개 파일"]) {
   test(`${kind}만 있는 변경은 분석 실행을 만들기 전에 중단한다`, async () => {

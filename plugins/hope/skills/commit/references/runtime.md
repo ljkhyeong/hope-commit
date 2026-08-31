@@ -82,6 +82,10 @@ Validation rejects malformed, ungrounded, duplicate, or over-budget authored
 data where the scripts can decide that deterministically. Meaning,
 proportionality, and overlapping-but-distinct claims remain analysis judgments.
 
+같은 검토 항목에서 여러 파일의 수집 제외 사유를 함께 설명할 수 있습니다.
+연결 ID 수는 실제 수집된 제한 목록까지 허용하며, 중복·알 수 없는 ID와 설명에서
+빠진 제한은 계속 거절합니다.
+
 Each successful adapter step returns `next`, a structured description of the
 state transitions allowed by the current run. Mandatory inspection,
 checkpointing, ledger, validation, and finish transitions are runtime-owned.
