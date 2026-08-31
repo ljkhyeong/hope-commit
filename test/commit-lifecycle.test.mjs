@@ -225,6 +225,75 @@ test("Commit Diff가 준비한 상태를 검증하고 재검증한 뒤 HTML을 �
   await assert.rejects(access(prepared.path), (error) => error.code === "ENOENT");
 });
 
+test("긴 커밋 본문을 요약에 중복하지 않고 근거 페이지에 나눠 담아 HTML을 만든다", async () => {
+  const temporaryRoot = await createTestTemporaryDirectory("hope-commit-long-body-");
+  await createRepositoryFixture(temporaryRoot);
+  const body = [
+    "실제 오류를 호출자에게 반환합니다.",
+    "",
+    ...Array.from({ length: 400 }, (_, index) => (
+      `${index + 1}: 입력값과 반환값을 확인하는 변경 설명입니다.`
+    )),
+  ].join("\n");
+  assert.ok(Buffer.byteLength(body, "utf8") > LIMITS.ledgerPageBytes);
+  git(temporaryRoot, "commit", "--amend", "--quiet",
+    "-m", "마지막 재시도 오류 반환", "-m", body);
+  const commit = git(temporaryRoot, "rev-parse", "HEAD");
+  const outputPath = join(temporaryRoot, "review.html");
+  const dependencies = commandDependencies(temporaryRoot);
+  const prepared = await runCommitCommand([
+    "prepare", commit, "--repo", temporaryRoot,
+    "--host-locale", "ko-KR", "--output", outputPath,
+  ], dependencies);
+
+  const pages = [];
+  let window = await runCommitCommand([
+    "inspect-window", "--run", prepared.path, "--page", "1",
+  ], dependencies);
+  while (window) {
+    pages.push(...window.pages);
+    const checkpoint = await runCommitCommand([
+      "checkpoint-window", "--run", prepared.path,
+      "--page", String(window.startPage),
+    ], dependencies);
+    window = checkpoint.nextWindow;
+  }
+  assert.equal(pages.length, prepared.pageCount);
+  for (const page of pages) {
+    assert.ok(Buffer.byteLength(JSON.stringify(page), "utf8") <= LIMITS.inspectionPageBytes);
+  }
+  const summary = pages.find((page) => page.kind === "summary").value;
+  assert.equal(summary.commit.id, commit);
+  assert.equal(summary.commit.subject, "마지막 재시도 오류 반환");
+  assert.equal(Object.hasOwn(summary.commit, "body"), false);
+  const bodyChunks = pages
+    .filter((page) => page.kind === "sources")
+    .flatMap((page) => page.value.sources)
+    .filter((source) => source.sourceKind === "commit-body");
+  assert.ok(bodyChunks.length > 1);
+  assert.equal(bodyChunks.map((source) => source.text).join("\n"), body);
+
+  const ledger = await runCommitCommand([
+    "ledger", "--run", prepared.path, "--page", "1",
+  ], dependencies);
+  const overview = ledger.reviewContext.find((entry) => entry.kind === "overview");
+  assert.equal(overview.commit.id, commit);
+  assert.equal(Object.hasOwn(overview.commit, "body"), false);
+  const run = await loadDiffRun(prepared.path, { temporaryRoot });
+  assert.equal(run.snapshot.commit.body, body);
+  await writeFile(prepared.analysisPath, JSON.stringify(makeLifecycleAnalysis(run)), {
+    flag: "wx", mode: 0o600,
+  });
+  const validated = await runCommitCommand([
+    "validate", "--run", prepared.path,
+  ], dependencies);
+  assert.equal(validated.valid, true);
+
+  await runCommitCommand(["finish", "--run", prepared.path], dependencies);
+  assert.match(await readFile(outputPath, "utf8"), /<!doctype html>/iu);
+  await assert.rejects(access(prepared.path), (error) => error.code === "ENOENT");
+});
+
 for (const binaryCount of [239, LIMITS.changedFiles - 1]) {
   test(`텍스트 변경과 바이너리 ${binaryCount}개의 제외 사유를 기록하고 HTML을 만든다`, async () => {
     const temporaryRoot = await createTestTemporaryDirectory("hope-commit-many-limits-");

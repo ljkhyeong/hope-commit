@@ -30,6 +30,9 @@ Git이 출력 끝에 붙인 줄바꿈 하나만 제거하며, 실제 폴더명�
 
 커밋 제목·본문·작성자·작성 시각은 UTF-8로 조회합니다. 저장소의 서명 표시
 설정과 관계없이 서명 확인 프로그램을 실행하지 않습니다.
+커밋 본문은 `commit-body` 근거 자료에서 페이지별로 나눠 전달합니다.
+검토 페이지와 최종 분석 목록의 요약에는 본문을 중복으로 넣지 않으며,
+수집된 원문을 자르거나 변경하지 않습니다.
 
 Changed content and requested context come from Git objects. Staged, unstaged,
 and untracked files do not enter the snapshot. The runtime rejects unsafe paths,
