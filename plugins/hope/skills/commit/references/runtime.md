@@ -30,6 +30,9 @@ Git이 출력 끝에 붙인 줄바꿈 하나만 제거하며, 실제 폴더명�
 
 커밋 제목·본문·작성자·작성 시각은 UTF-8로 조회합니다. 저장소의 서명 표시
 설정과 관계없이 서명 확인 프로그램을 실행하지 않습니다.
+커밋 본문은 `commit-body` 근거 자료에서 페이지별로 나눠 전달합니다.
+검토 페이지와 최종 분석 목록의 요약에는 본문을 중복으로 넣지 않으며,
+수집된 원문을 자르거나 변경하지 않습니다.
 
 Changed content and requested context come from Git objects. Staged, unstaged,
 and untracked files do not enter the snapshot. The runtime rejects unsafe paths,
@@ -39,6 +42,8 @@ file, source body, inspection page, analysis, evidence range, and artifact.
 본문을 수집할 수 있는 텍스트 파일은 로컬 `-diff` 속성이 있어도 텍스트 패치와
 변경 줄 수를 수집합니다. 바이너리, 크기 제한 초과 파일과 비밀정보 제외 기준은
 그대로 적용하며, 외부 diff와 textconv 명령은 실행하지 않습니다.
+일반 파일과 심볼릭 링크 사이의 변경에서 패치가 같은 경로의 삭제·추가로
+나뉘면 두 항목의 줄 수를 합산합니다.
 
 파일별 패치는 변경 전·후의 정확한 파일 경로만 선택합니다. 파일과 디렉터리가
 서로 바뀌어도 비공개 하위 파일의 본문이 다른 파일의 패치에 포함되지 않으며,
@@ -81,6 +86,10 @@ file. The artifact needs neither repository dependencies nor a network request.
 Validation rejects malformed, ungrounded, duplicate, or over-budget authored
 data where the scripts can decide that deterministically. Meaning,
 proportionality, and overlapping-but-distinct claims remain analysis judgments.
+
+같은 검토 항목에서 여러 파일의 수집 제외 사유를 함께 설명할 수 있습니다.
+연결 ID 수는 실제 수집된 제한 목록까지 허용하며, 중복·알 수 없는 ID와 설명에서
+빠진 제한은 계속 거절합니다.
 
 Each successful adapter step returns `next`, a structured description of the
 state transitions allowed by the current run. Mandatory inspection,

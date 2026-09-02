@@ -1014,7 +1014,7 @@ function validateContextChecks(values, sourceMap, limitMap) {
       sourceMap,
       { allowEmpty: true },
     );
-    const limitIds = array(value.limitIds, `${name}.limitIds`, 12);
+    const limitIds = array(value.limitIds, `${name}.limitIds`, limitMap.size);
     if (new Set(limitIds).size !== limitIds.length) {
       throw new Error(`${name}.limitIds contains a duplicate`);
     }

@@ -98,7 +98,7 @@
           },
           "limitIds": {
             "type": "array",
-            "maxItems": 12,
+            "maxItems": 514,
             "uniqueItems": true,
             "items": { "type": "string", "pattern": "^limit-[0-9]+$" }
           }

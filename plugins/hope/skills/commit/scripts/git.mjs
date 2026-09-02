@@ -325,7 +325,7 @@ function parseLineCount(value) {
   return count;
 }
 
-function parseNumstat(buffer) {
+function parseNumstat(buffer, { sumRepeatedPaths = false } = {}) {
   const tokens = nulDelimitedUtf8(buffer, "line counts");
   const counts = new Map();
   for (let index = 0; index < tokens.length;) {
@@ -344,13 +344,14 @@ function parseNumstat(buffer) {
       path = validateGitPath(path);
     }
     const key = changedFileKey(path, previousPath);
-    if (counts.has(key)) {
+    const previousCounts = counts.get(key);
+    if (previousCounts && !sumRepeatedPaths) {
       throw new Error("Git returned duplicate changed-line counts");
     }
     counts.set(key, Object.freeze({
-      additions,
-      binary: fields[0] === "-",
-      deletions,
+      additions: additions + (previousCounts?.additions ?? 0),
+      binary: fields[0] === "-" || previousCounts?.binary === true,
+      deletions: deletions + (previousCounts?.deletions ?? 0),
     }));
   }
   return counts;
@@ -768,11 +769,12 @@ export async function collectLocalGitCommit(target, {
   }
   if (textPatchesWithBinaryCounts.length > 0) {
     // --numstat은 패치를 적용하지 않고 줄 수만 반환한다.
+    // 파일 형식 변경은 같은 경로의 삭제·추가 패치로 나뉘므로 줄 수를 합산한다.
     const patchCounts = parseNumstat(await runGit(
       repositoryPath,
       ["apply", "--numstat", "-z", "-"],
       { ...options, encoding: null, input: Buffer.from(textPatchesWithBinaryCounts.join("\n")) },
-    ));
+    ), { sumRepeatedPaths: true });
     for (const [index, file] of files.entries()) {
       const counts = patchCounts.get(changedFileKey(file.path));
       if (counts) {

@@ -1,6 +1,6 @@
 {
   "name": "hope",
-  "version": "5.0.1",
+  "version": "5.0.2",
   "description": "Review immutable local Git commits as evidence-linked offline HTML alongside Hope's intent, maintenance, review, PR explanation, and writing skills. Requires Node.js 22 or newer.",
   "author": {
     "name": "ljkhyeong",

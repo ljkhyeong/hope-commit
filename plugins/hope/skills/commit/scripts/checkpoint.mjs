@@ -647,6 +647,7 @@ function ledgerCoverage(ledger) {
 }
 
 function reviewContextGroups(snapshot) {
+  const { body: _body, ...commit } = snapshot.commit;
   const fileLimits = new Map(snapshot.limits
     .filter((limit) => limit.kind === "file-unavailable")
     .map((limit) => [limit.subject, limit]));
@@ -655,7 +656,7 @@ function reviewContextGroups(snapshot) {
     kind: "review-context",
     value: Object.freeze({
       kind: "overview",
-      commit: snapshot.commit,
+      commit,
       repository: snapshot.repository,
       settings: snapshot.settings,
       snapshot: snapshot.snapshot,
